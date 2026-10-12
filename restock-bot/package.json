@@ -1,0 +1,16 @@
+{
+  "name": "restock-bot",
+  "version": "0.1.0",
+  "description": "品薄・再販・新着を監視して、日本向け（アフィリエイト）と海外向け（Discord）に通知するボット",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "node src/index.js --once",
+    "demo": "node src/index.js --demo",
+    "test": "node --test"
+  }
+}

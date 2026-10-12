@@ -1,0 +1,44 @@
+[
+  {
+    "id": "jp-national-team-limited",
+    "category": "soccer",
+    "markets": ["jp", "global"],
+    "label": { "ja": "サッカー日本代表 限定ユニフォーム", "en": "Japan National Team limited jersey" },
+    "source": "rakuten",
+    "query": { "keyword": "サッカー日本代表 ユニフォーム 限定", "minPrice": 8000 },
+    "events": ["restock", "new"]
+  },
+  {
+    "id": "jclub-shopify-example",
+    "category": "soccer",
+    "markets": ["jp", "global"],
+    "label": { "ja": "Jクラブ公式ストアの新作", "en": "J.League club official store drops" },
+    "source": "shopify",
+    "query": { "store": "https://example-club-store.jp", "keyword": "ユニフォーム" },
+    "variants": ["M", "L", "XL"],
+    "events": ["restock", "new"]
+  },
+  {
+    "id": "anime-japan-exclusive",
+    "category": "anime",
+    "markets": ["global"],
+    "label": { "ja": "アニメ 日本限定グッズ", "en": "Anime Japan-exclusive merch" },
+    "source": "rakuten",
+    "query": { "keyword": "限定 フィギュア 予約" },
+    "events": ["restock", "new"]
+  },
+  {
+    "id": "anime-official-page",
+    "category": "anime",
+    "markets": ["jp", "global"],
+    "label": { "ja": "公式通販の限定品ページ", "en": "Official web shop exclusive" },
+    "source": "html",
+    "query": {
+      "url": "https://example-anime-shop.jp/products/12345",
+      "title": "限定版フィギュア",
+      "inStock": "カートに入れる",
+      "outOfStock": "在庫切れ|SOLD OUT|受付終了"
+    },
+    "events": ["restock"]
+  }
+]
