@@ -1,0 +1,19 @@
+{
+  "name": "japan-card-guide",
+  "version": "0.1.0",
+  "description": "海外からの旅行者向け「日本でポケモンカードを探す旅」の英語ガイドサイト（静的サイト＋旅行アフィリエイト）",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node src/build.js",
+    "check": "node src/build.js --check",
+    "preview": "node src/build.js && node src/preview.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "marked": "18.0.13"
+  }
+}

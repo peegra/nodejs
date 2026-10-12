@@ -1,0 +1,34 @@
+[
+  {
+    "id": "hotel-akihabara",
+    "kind": "hotel",
+    "partner": "Booking.com",
+    "title": "Hotels near Akihabara",
+    "blurb": "Stay within walking distance of Tokyo's densest cluster of card shops.",
+    "url": ""
+  },
+  {
+    "id": "hotel-ikebukuro",
+    "kind": "hotel",
+    "partner": "Booking.com",
+    "title": "Hotels near Ikebukuro",
+    "blurb": "A convenient base on the Yamanote Line with a large Pokémon Center nearby.",
+    "url": ""
+  },
+  {
+    "id": "tour-akihabara",
+    "kind": "tour",
+    "partner": "GetYourGuide",
+    "title": "Guided Akihabara anime & games tour",
+    "blurb": "A local guide shows you around the backstreets and specialty shops.",
+    "url": ""
+  },
+  {
+    "id": "esim-japan",
+    "kind": "esim",
+    "partner": "Klook",
+    "title": "Japan eSIM",
+    "blurb": "Stay online for maps and translation while you hunt.",
+    "url": ""
+  }
+]
