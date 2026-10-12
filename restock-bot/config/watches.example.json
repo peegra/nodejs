@@ -2,27 +2,55 @@
   {
     "id": "jclub-store-uniforms",
     "category": "soccer",
-    "markets": ["global"],
-    "label": { "en": "J.League club official store — jerseys" },
+    "markets": [
+      "global"
+    ],
+    "label": {
+      "en": "J.League club official store — jerseys"
+    },
     "source": "shopify",
-    "query": { "store": "https://example-club-store.jp", "keyword": "ユニフォーム" },
-    "variants": ["M", "L", "XL"],
-    "events": ["restock", "new"]
+    "query": {
+      "store": "https://example-club-store.jp",
+      "keyword": "ユニフォーム"
+    },
+    "variants": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "events": [
+      "restock",
+      "new"
+    ]
   },
   {
     "id": "japan-nt-limited-rakuten",
     "category": "soccer",
-    "markets": ["global"],
-    "label": { "en": "Japan National Team limited jerseys" },
+    "markets": [
+      "global"
+    ],
+    "label": {
+      "en": "Japan National Team limited jerseys"
+    },
     "source": "rakuten",
-    "query": { "keyword": "サッカー日本代表 ユニフォーム 限定", "minPrice": 8000 },
-    "events": ["restock", "new"]
+    "query": {
+      "keyword": "サッカー日本代表 ユニフォーム 限定",
+      "minPrice": 8000
+    },
+    "events": [
+      "restock",
+      "new"
+    ]
   },
   {
     "id": "anime-official-shop-item",
     "category": "anime",
-    "markets": ["global"],
-    "label": { "en": "Official web shop — Japan-exclusive figure" },
+    "markets": [
+      "global"
+    ],
+    "label": {
+      "en": "Official web shop — Japan-exclusive figure"
+    },
     "source": "html",
     "query": {
       "url": "https://example-anime-shop.jp/products/12345",
@@ -30,15 +58,66 @@
       "inStock": "カートに入れる",
       "outOfStock": "在庫切れ|SOLD OUT|受付終了"
     },
-    "events": ["restock"]
+    "events": [
+      "restock"
+    ]
   },
   {
     "id": "anime-hobby-shop-preorders",
     "category": "anime",
-    "markets": ["global"],
-    "label": { "en": "Hobby shop — Japan-exclusive preorders" },
+    "markets": [
+      "global"
+    ],
+    "label": {
+      "en": "Hobby shop — Japan-exclusive preorders"
+    },
     "source": "shopify",
-    "query": { "store": "https://example-hobby-shop.jp", "keyword": "限定" },
-    "events": ["restock", "new"]
+    "query": {
+      "store": "https://example-hobby-shop.jp",
+      "keyword": "限定"
+    },
+    "events": [
+      "restock",
+      "new"
+    ]
+  },
+  {
+    "id": "idol-official-store",
+    "category": "idol",
+    "markets": [
+      "global"
+    ],
+    "showImage": false,
+    "label": {
+      "en": "Idol group official store — limited goods"
+    },
+    "source": "shopify",
+    "query": {
+      "store": "https://example-idol-store.jp",
+      "keyword": "限定"
+    },
+    "events": [
+      "restock",
+      "new"
+    ]
+  },
+  {
+    "id": "idol-photobook-rakuten",
+    "category": "idol",
+    "markets": [
+      "global"
+    ],
+    "showImage": false,
+    "label": {
+      "en": "Idol photobook — limited cover edition"
+    },
+    "source": "rakuten",
+    "query": {
+      "keyword": "写真集 限定カバー"
+    },
+    "events": [
+      "restock",
+      "new"
+    ]
   }
 ]

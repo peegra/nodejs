@@ -24,3 +24,16 @@ test('海外向けは代行サービスのリンクとドル換算', () => {
 test('代行テンプレートがなければ元のURL', () => {
   assert.equal(buildLink(item, 'global', {}), 'https://shop.jp/a');
 });
+
+test('showImage: false なら商品画像を載せない', () => {
+  const withImage = { ...item, image: 'https://img' };
+  const shown = formatEvent({ type: 'new', watch, item: withImage }, 'global', {});
+  const hidden = formatEvent({ type: 'new', watch: { ...watch, showImage: false }, item: withImage }, 'global', {});
+  assert.equal(shown.embeds[0].thumbnail.url, 'https://img');
+  assert.equal(hidden.embeds[0].thumbnail, undefined);
+});
+
+test('アイドルのジャンル名が表示される', () => {
+  const p = formatEvent({ type: 'new', watch: { ...watch, category: 'idol' }, item }, 'global', {});
+  assert.match(p.content, /🎤 Idol/);
+});

@@ -28,6 +28,22 @@ const SCENARIO = {
       item('card-box', 'トレーディングカード 拡張パック 日本語版 BOX', null, 5400, false),
     ],
   ],
+  idol: [
+    [
+      item('photobook', '1st写真集 限定カバー版（特典ポストカード付き）', null, 3300, false),
+      item('cd-limited', 'ニューシングル 初回限定盤A（Blu-ray付き）', null, 2420, true),
+    ],
+    [
+      item('photobook', '1st写真集 限定カバー版（特典ポストカード付き）', null, 3300, true),
+      item('cd-limited', 'ニューシングル 初回限定盤A（Blu-ray付き）', null, 2420, true),
+      item('magazine', '月刊誌 12月号 表紙・特集号', null, 990, true),
+    ],
+    [
+      item('photobook', '1st写真集 限定カバー版（特典ポストカード付き）', null, 3300, false),
+      item('cd-limited', 'ニューシングル 初回限定盤A（Blu-ray付き）', null, 2420, true),
+      item('magazine', '月刊誌 12月号 表紙・特集号', null, 990, true),
+    ],
+  ],
 };
 
 export function fetchMock(watch, _env, { round = 0 } = {}) {

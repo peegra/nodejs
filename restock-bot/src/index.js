@@ -53,6 +53,8 @@ async function demo() {
       label: { en: 'Japan NT / J.League limited jerseys' }, events: ['restock', 'new', 'priceDrop'] },
     { id: 'demo-anime', category: 'anime', source: 'mock', markets: ['global'],
       label: { en: 'Anime Japan-exclusive merch' }, events: ['restock', 'new'] },
+    { id: 'demo-idol', category: 'idol', source: 'mock', markets: ['global'], showImage: false,
+      label: { en: 'J-pop idol photobooks / limited CDs' }, events: ['restock', 'new'] },
     { id: 'demo-broken-shop', category: 'anime', source: 'mock', markets: ['global'],
       query: { fail: true }, label: { en: 'Shop whose page layout changed' } },
   ];

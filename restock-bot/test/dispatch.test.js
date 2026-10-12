@@ -39,3 +39,10 @@ test('無料チャンネル未設定なら遅延配信を予約しない', async
   await dispatch([event('soccer')], env(), state, { dryRun: true, log: () => {} });
   assert.equal(state.freeQueue, undefined);
 });
+
+test('DISCORD_WEBHOOK_<ジャンル> を読み込み、新しいジャンルもそのまま振り分けられる', async () => {
+  const { categoryWebhooks } = await import('../src/config.js');
+  const hooks = categoryWebhooks({ DISCORD_WEBHOOK_IDOL: 'I', DISCORD_WEBHOOK_SOCCER: '', OTHER: 'x' });
+  assert.deepEqual(hooks, { idol: 'I' });
+  assert.equal(targetFor(event('idol'), 'global', env(hooks)).url, 'I');
+});

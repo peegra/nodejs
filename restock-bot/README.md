@@ -1,11 +1,11 @@
 # restock-bot（試作）
 
-日本限定品（サッカー・アニメ）の **再入荷・新着・値下がり** を監視して、海外のファン向けに英語で Discord に通知するボットです。会話のない **配信専用サービス** として、運営の手間をかけずに回すことを前提にしています。
+日本限定品（サッカー・アニメ・アイドル）の **再入荷・新着・値下がり** を監視して、海外のファン向けに英語で Discord に通知するボットです。会話のない **配信専用サービス** として、運営の手間をかけずに回すことを前提にしています。
 
 ```
 監視（楽天・Shopifyストア・公式通販）
   → 差分を検知（再入荷 / 新着 / 値下がり）
-  → 有料チャンネルにすぐ通知（サッカー・アニメ別）
+  → 有料チャンネルにすぐ通知（サッカー・アニメ・アイドル別）
   → 無料チャンネルに30分遅れで同じ通知（「有料なら30分早い」という宣伝）
   → 監視が失敗し続けたら、管理用チャンネルに自分宛ての警告
 ```
@@ -20,7 +20,7 @@ npm run demo   # デモ用データで3回監視し、通知の文面をコン�
 npm test       # 単体テスト
 ```
 
-デモでは、有料チャンネル（`GLOBAL:SOCCER` / `GLOBAL:ANIME`）、無料チャンネル（`FREE`）、管理用チャンネル（`STATUS`）に届く内容が表示されます。
+デモでは、有料チャンネル（`GLOBAL:SOCCER` / `GLOBAL:ANIME` / `GLOBAL:IDOL`）、無料チャンネル（`FREE`）、管理用チャンネル（`STATUS`）に届く内容が表示されます。
 
 ## Discord サーバーの作り方（配信専用）
 
@@ -33,6 +33,7 @@ npm test       # 単体テスト
    | `#free-alerts` | 全員 | 不可 |
    | `#football-alerts` | 有料ロールのみ | 不可 |
    | `#anime-alerts` | 有料ロールのみ | 不可 |
+   | `#idol-alerts` | 有料ロールのみ | 不可 |
    | `#bot-status` | 自分のみ | 不可 |
 
    - チャンネルの設定 →「権限」で `@everyone` の「メッセージを送信」をオフにすると、書き込めない配信専用チャンネルになります
@@ -46,7 +47,7 @@ npm test       # 単体テスト
 
    | 項目 | 内容 |
    |---|---|
-   | `DISCORD_WEBHOOK_SOCCER` / `DISCORD_WEBHOOK_ANIME` | 有料チャンネル（ジャンル別）。作らない場合は `DISCORD_WEBHOOK_GLOBAL` に1つだけ |
+   | `DISCORD_WEBHOOK_SOCCER` / `_ANIME` / `_IDOL` | 有料チャンネル（ジャンル別）。`DISCORD_WEBHOOK_<ジャンル名>` を足せば、コードを変えずにジャンルを増やせる。作らない場合は `DISCORD_WEBHOOK_GLOBAL` に1つだけ |
    | `DISCORD_WEBHOOK_FREE` / `FREE_DELAY_MIN` | 無料チャンネルと遅延（分）。未設定なら無料チャンネルには送らない |
    | `JOIN_URL` | 無料チャンネルの通知に載せる有料会員の申し込みページ |
    | `DISCORD_WEBHOOK_STATUS` / `FAILURE_THRESHOLD` | 管理用チャンネルと、何回続けて失敗したら知らせるか |
@@ -72,15 +73,18 @@ node src/index.js --once --dry-run    # Discordには送らずコンソールに
 ```jsonc
 {
   "id": "jclub-store-uniforms",           // 一意なID（状態の保存に使う）
-  "category": "soccer",                   // soccer / anime（配信チャンネルの振り分けに使う）
+  "category": "soccer",                   // soccer / anime / idol など（配信チャンネルの振り分けに使う）
   "markets": ["global"],                  // global（海外向け）/ jp（日本向け・休止中）
   "label": { "en": "J.League club official store — jerseys" },
   "source": "shopify",                    // rakuten / shopify / html
   "query": { "store": "https://example-club-store.jp", "keyword": "ユニフォーム" },
   "variants": ["M", "L", "XL"],           // shopify のみ: 監視するサイズ
-  "events": ["restock", "new", "priceDrop"]
+  "events": ["restock", "new", "priceDrop"],
+  "showImage": true                       // false にすると通知に商品画像を載せない
 }
 ```
+
+アイドルの写真集や雑誌は表紙に本人が写っているため、例では `"showImage": false` にしています（肖像権・著作権への配慮）。
 
 | source | 取得方法 | サイズ別の在庫 | 向いている対象 |
 |---|---|---|---|
@@ -112,11 +116,11 @@ src/
 
 - **保守**: 監視先のサイトが変わると取得できなくなります。`#bot-status` に警告が来たら、`config/watches.json` の該当する監視を直してください
 - **利用規約とアクセス頻度**: `shopify` と `html` は相手のサイトの規約と robots.txt を確認し、監視間隔を短くしすぎないでください。楽天APIは1秒1回までにしています
-- **扱わないもの**: チケットなど、法律で転売が規制されている商品は監視対象にしないでください
+- **扱わないもの**: チケットなど、法律で転売が規制されている商品は監視対象にしないでください。ファンクラブ会員限定の販売ページも、ログインが必要なうえ規約で禁止されていることが多いので対象外にしてください
 
 ## 次にやること
 
-- [ ] 監視する実在のショップと商品を選ぶ（サッカー・アニメそれぞれ5〜10件）
+- [ ] 監視する実在のショップと商品を選ぶ（サッカー・アニメ・アイドルそれぞれ5〜10件）
 - [ ] Discord サーバーを作り、Webhook を `.env` に設定して実際に届くか試す
 - [ ] 商品名の英訳（今は日本語のまま）
 - [ ] 常時稼働の置き場所（小さなVPS、Cloud Run＋スケジューラなど）
