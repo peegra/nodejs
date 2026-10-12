@@ -56,7 +56,7 @@ export function renderForConsole(name, { content, embeds }) {
   const lines = [`[${name.toUpperCase()}] ${content}`];
   for (const e of embeds ?? []) {
     lines.push(`  ${e.title}`);
-    for (const f of e.fields ?? []) lines.push(`  ${f.name}: ${f.value}`);
+    for (const f of e.fields ?? []) lines.push(`  ${f.name}: ${f.value.replaceAll('\n', '\n    ')}`);
     if (e.url) lines.push(`  ${e.url}`);
     if (e.footer) lines.push(`  ${e.footer.text}`);
   }

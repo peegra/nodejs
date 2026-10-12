@@ -36,6 +36,7 @@ export function loadEnv() {
     proxyUrlTemplate: process.env.PROXY_URL_TEMPLATE || '',
     jpyPerUsd: Number(process.env.JPY_PER_USD) || 0,
     pollIntervalSec: Number(process.env.POLL_INTERVAL_SEC) || 300,
+    justtcgApiKey: process.env.JUSTTCG_API_KEY || '',
   };
 }
 

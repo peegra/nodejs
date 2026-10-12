@@ -1,0 +1,18 @@
+[
+  {
+    "id": "pokemon-jp-box-example",
+    "game": "pokemon",
+    "name": { "ja": "ポケモンカード 拡張パック（例）BOX", "en": "Pokémon TCG Japanese booster box (example)" },
+    "msrpJpy": 6000,
+    "releaseDate": "2026-11-01",
+    "market": { "provider": "justtcg", "cardId": "REPLACE-WITH-JUSTTCG-CARD-ID", "condition": "Sealed", "language": "Japanese" }
+  },
+  {
+    "id": "onepiece-jp-box-example",
+    "game": "onepiece",
+    "name": { "ja": "ワンピースカード ブースターパック（例）BOX", "en": "One Piece Card Game Japanese booster box (example)" },
+    "msrpJpy": 5280,
+    "releaseDate": "2026-11-15",
+    "market": { "provider": "justtcg", "cardId": "REPLACE-WITH-JUSTTCG-CARD-ID", "condition": "Sealed", "language": "Japanese" }
+  }
+]

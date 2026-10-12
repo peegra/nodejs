@@ -107,10 +107,61 @@ src/
   detect.js         前回との差分から restock / new / priceDrop を判定
   health.js         失敗が続いたとき・復旧したときの管理者向け通知
   sources/          shopify / html / rakuten / mock（デモ）
+  tcg/              トレカの輸入損益計算（costs: 費用と利益 / providers: 相場の取得 / format: レポート）
   notify/format.js  通知の文面（英語＋代行リンク、無料チャンネル用の文言）
   notify/index.js   配信先の振り分けと無料チャンネルへの遅延配信
   notify/discord.js Discord Webhook への送信（429 のときは待って再送）
 ```
+
+## トレカの輸入損益計算（`npm run tcg`）
+
+日本語版トレカの未開封品（BOXなど）を **日本の定価で買って海外に送り、米国の相場で売った場合の見積もり利益** を計算し、英語のレポートとして Discord に投稿します。日本国内の相場は正規に自動取得する方法がないため、日本側は **公式の定価** を使います。
+
+```bash
+npm run tcg:demo              # デモ用の架空データで計算し、表示だけ
+npm run tcg -- --dry-run      # 本物の相場で計算し、表示だけ
+npm run tcg                   # 本物の相場で計算し、DISCORD_WEBHOOK_TCG（なければ GLOBAL）に投稿
+```
+
+### 設定
+
+1. `JUSTTCG_API_KEY` を `.env` に設定する（[JustTCG](https://justtcg.com/) で無料取得。有料サービスでの利用条件は規約で確認）
+2. `config/tcg-products.example.json` を `config/tcg-products.json` にコピーして商品を書く
+
+   ```jsonc
+   {
+     "id": "pokemon-jp-box-xxx",
+     "game": "pokemon",
+     "name": { "ja": "ポケモンカード 拡張パック〇〇 BOX", "en": "Pokémon TCG Japanese booster box ○○" },
+     "msrpJpy": 6000,                       // 日本の定価（税込）
+     "releaseDate": "2026-11-01",
+     "market": { "provider": "justtcg", "cardId": "JustTCGのカードID", "condition": "Sealed", "language": "Japanese" }
+   }
+   ```
+
+3. `config/tcg-costs.example.json` を `config/tcg-costs.json` にコピーして費用の前提を調整する
+
+   | 項目 | 内容 |
+   |---|---|
+   | `jpyPerUsd` | 為替レート |
+   | `unitsPerOrder` | 1回の注文でまとめて買う個数（代行手数料・国内送料を割る数） |
+   | `proxyFeeJpy` / `domesticShippingJpy` | 購入代行の手数料と、日本国内の送料（1注文あたり） |
+   | `paymentFeePct` | 支払い手数料（%） |
+   | `intlShippingUsdPerUnit` | 国際送料（1個あたり・ドル） |
+   | `dutyPct` | 関税（%）。国や時期で変わるので要確認 |
+   | `sellingFeePct` | 海外で売るときの販売手数料（%） |
+
+### 計算式
+
+```
+着地コスト = (定価 + 代行手数料/個数 + 国内送料/個数) ÷ 為替 × (1 + 支払い手数料)
+           + 国際送料 + 定価 ÷ 為替 × 関税
+見積もり利益 = 米国相場 × (1 − 販売手数料) − 着地コスト
+```
+
+レポートは利益の大きい順に並び、🟢（利益あり）/ 🔴（赤字）/ ⏳（米国の相場がまだない＝予約段階）で示します。7日以上更新されていない相場には警告が付きます。
+
+**注意**: 日本では抽選販売や購入数の制限があり、定価で買えるとは限りません。レポートには免責文（見積もりであり投資助言ではない）を必ず付けています。
 
 ## 運用上の注意
 

@@ -1,3 +1,5 @@
 .env
 data/*.json
 config/watches.json
+config/tcg-products.json
+config/tcg-costs.json

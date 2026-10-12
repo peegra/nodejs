@@ -11,6 +11,8 @@
     "start": "node src/index.js",
     "once": "node src/index.js --once",
     "demo": "node src/index.js --demo",
-    "test": "node --test"
+    "test": "node --test",
+    "tcg": "node src/tcg/index.js",
+    "tcg:demo": "node src/tcg/index.js --demo"
   }
 }

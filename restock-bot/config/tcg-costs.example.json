@@ -1,0 +1,10 @@
+{
+  "jpyPerUsd": 150,
+  "unitsPerOrder": 3,
+  "proxyFeeJpy": 1000,
+  "domesticShippingJpy": 800,
+  "paymentFeePct": 3.5,
+  "intlShippingUsdPerUnit": 9,
+  "dutyPct": 0,
+  "sellingFeePct": 13
+}
