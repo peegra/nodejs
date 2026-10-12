@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "node src/build.js",
+    "build:prod": "node src/build.js --production",
     "check": "node src/build.js --check",
     "preview": "node src/build.js && node src/preview.js",
     "test": "node --test"

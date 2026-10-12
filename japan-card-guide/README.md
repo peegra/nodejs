@@ -16,6 +16,19 @@ npm run check     # 公開前チェック。確認が必要な項目が残って
 npm test
 ```
 
+## 公開（Cloudflare Pages）
+
+| 設定項目 | 値 |
+|---|---|
+| リポジトリ | `peegra/nodejs` |
+| 公開するブランチ | `claude/restock-bot`（master に取り込んだら master に変更） |
+| ルートディレクトリ | `japan-card-guide` |
+| ビルドコマンド | `npm run build:prod` |
+| 出力ディレクトリ | `dist` |
+| 環境変数 | `NODE_VERSION=22`、`SITE_URL=https://（取得したドメイン）` |
+
+`npm run build:prod`（公開用ビルド）では、リンク未設定のアフィリエイト枠を表示しません。枠が一つも表示されないページには広告表示も付きません。
+
 ## 記事の書き方（`content/*.md`）
 
 ```markdown

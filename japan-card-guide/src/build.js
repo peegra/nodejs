@@ -25,9 +25,12 @@ export function parseFrontMatter(src) {
   return { meta, body: src.slice(m[0].length) };
 }
 
-export function renderAffiliates(args, affiliates) {
+// production: 公開用ビルドではリンク未設定の枠を出さない
+export function renderAffiliates(args, affiliates, { production = false } = {}) {
   const ids = args.ids?.split(',').map((s) => s.trim());
-  const picked = affiliates.filter((a) => (ids ? ids.includes(a.id) : a.kind === args.kind));
+  const picked = affiliates
+    .filter((a) => (ids ? ids.includes(a.id) : a.kind === args.kind))
+    .filter((a) => !production || a.url);
   if (picked.length === 0) return '';
   const cards = picked.map((a) => {
     const inner = `<span class="aff-kind">${escapeHtml(a.partner)}</span><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.blurb)}</span>`;
@@ -51,11 +54,11 @@ export function renderReleases(releases, { today = new Date().toISOString().slic
   return `<div class="table-wrap"><table class="releases"><thead><tr><th>JP release</th><th>Game</th><th>Product</th><th>JP retail</th><th>Notes</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
-export function expandShortcodes(html, data) {
+export function expandShortcodes(html, data, opts = {}) {
   return html
     .replace(/(?:<p>)?\{\{\s*affiliates\s+([^}]*)\}\}(?:<\/p>)?/g, (_, argStr) => {
       const args = Object.fromEntries(argStr.trim().split(/\s+/).map((kv) => kv.split('=')));
-      return renderAffiliates(args, data.affiliates);
+      return renderAffiliates(args, data.affiliates, opts);
     })
     .replace(/(?:<p>)?\{\{\s*releases\s*\}\}(?:<\/p>)?/g, () => renderReleases(data.releases))
     .replace(VERIFY_RE, (_, note) => `<mark class="verify" title="要確認">要確認: ${note}</mark>`);
@@ -99,15 +102,16 @@ export function loadAll(root = ROOT) {
   return { site, data, pages };
 }
 
-export function build({ root = ROOT, out = path.join(root, 'dist') } = {}) {
+export function build({ root = ROOT, out = path.join(root, 'dist'), production = false, siteUrl } = {}) {
   const { site, data, pages } = loadAll(root);
+  if (siteUrl) site.baseUrl = siteUrl; // 公開先で SITE_URL を設定すれば site.config.json を書き換えなくてよい
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
 
   const nav = pages.filter((p) => p.meta.nav).map((p) => ({ href: `/${p.slug}${p.slug ? '/' : ''}`, label: p.meta.nav }));
   for (const p of pages) {
-    const content = expandShortcodes(marked.parse(p.body), data);
-    const html = layout({ site, page: p, content, nav, hasAffiliates: /\{\{\s*affiliates/.test(p.body) });
+    const content = expandShortcodes(marked.parse(p.body), data, { production });
+    const html = layout({ site, page: p, content, nav, hasAffiliates: content.includes('rel="sponsored') || (!production && content.includes('aff-card')) });
     const dir = path.join(out, p.slug);
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, 'index.html'), html);
@@ -124,7 +128,9 @@ export function build({ root = ROOT, out = path.join(root, 'dist') } = {}) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const check = process.argv.includes('--check');
-  const { pages, issues } = build();
+  const production = process.argv.includes('--production');
+  const { pages, issues } = build({ production, siteUrl: process.env.SITE_URL });
+  if (production) console.log('公開用ビルド: リンク未設定のアフィリエイト枠は表示しません');
   console.log(`${pages.length} ページを dist/ に書き出しました`);
   if (issues.length) {
     console.log(`\n公開前に確認が必要な項目（${issues.length}件）:`);

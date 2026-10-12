@@ -74,3 +74,18 @@ test('サイト全体をビルドできる（全ページ・sitemap・広告表�
   assert.doesNotMatch(about, /This page contains affiliate links/);
   assert.match(readFileSync(path.join(out, 'sitemap.xml'), 'utf8'), /<loc>https:\/\/example\.com\/buying-rules\/<\/loc>/);
 });
+
+test('公開用ビルド: リンク未設定の枠を出さず、枠が一つも出ないページには広告表示を付けない', () => {
+  const html = renderAffiliates({ kind: 'hotel' }, affiliates, { production: true });
+  assert.match(html, /Hotel &lt;A&gt;/);
+  assert.doesNotMatch(html, /Link not set yet/);
+  assert.equal(renderAffiliates({ ids: 'h2' }, affiliates, { production: true }), '');
+
+  const out = mkdtempSync(path.join(tmpdir(), 'jcg-prod-'));
+  build({ root: ROOT, out, production: true, siteUrl: 'https://japancardhunt.test' });
+  const where = readFileSync(path.join(out, 'where-to-buy-tokyo/index.html'), 'utf8');
+  assert.doesNotMatch(where, /Link not set yet/);
+  assert.match(where, /<link rel="canonical" href="https:\/\/japancardhunt\.test\/where-to-buy-tokyo\/">/);
+  // 現在はリンクがすべて未設定なので、広告表示も出ない
+  assert.doesNotMatch(where, /This page contains affiliate links/);
+});
