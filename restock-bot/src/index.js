@@ -5,7 +5,8 @@ import { ROOT, loadEnv, loadWatches, validateWatch } from './config.js';
 import { loadState, saveState } from './state.js';
 import { fetchItems } from './sources/index.js';
 import { detectChanges } from './detect.js';
-import { dispatch } from './notify/index.js';
+import { deliver, dispatch, flushFreeQueue } from './notify/index.js';
+import { updateHealth } from './health.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -18,38 +19,49 @@ const { values: args } = parseArgs({
   },
 });
 
-export async function runOnce({ watches, env, state, dryRun, round = 0, log = console.log }) {
+export async function runOnce({ watches, env, state, dryRun, round = 0, log = console.log, flushAll = false }) {
   let total = 0;
   for (const watch of watches) {
+    let result;
     try {
       const items = await fetchItems(watch, env, { round });
       const { events, next } = detectChanges(watch, state.watches[watch.id], items);
       state.watches[watch.id] = next;
       total += events.length;
-      await dispatch(events, env, { dryRun, log });
+      await dispatch(events, env, state, { dryRun, log });
+      result = { itemCount: items.length };
     } catch (err) {
       // 1件の監視が失敗しても他の監視は続ける
       const cause = err.cause ? ` (${err.cause.code ?? err.cause.message})` : '';
       log(`[error] ${watch.id}: ${err.message}${cause}`);
+      result = { error: `${err.message}${cause}` };
     }
-    if (watch.source !== 'mock') await sleep(1100); // 楽天APIは1秒1回まで
+
+    const alert = updateHealth(state, watch, result, { threshold: env.failureThreshold });
+    if (alert) await deliver({ name: 'status', url: env.webhooks.status }, { content: alert }, { dryRun, log });
+
+    if (!watch.source.startsWith('mock')) await sleep(1100); // 楽天APIは1秒1回まで
   }
+  await flushFreeQueue(env, state, { dryRun, log, now: flushAll ? Infinity : Date.now() });
   return total;
 }
 
 async function demo() {
   const env = loadEnv();
   const watches = [
-    { id: 'demo-soccer', category: 'soccer', source: 'mock', markets: ['jp', 'global'],
-      label: { ja: 'サッカー日本代表・Jクラブ 限定ユニ', en: 'Japan NT / J.League limited jerseys' },
-      events: ['restock', 'new', 'priceDrop'] },
-    { id: 'demo-anime', category: 'anime', source: 'mock', markets: ['jp', 'global'],
-      label: { ja: 'アニメ 日本限定グッズ', en: 'Anime Japan-exclusive merch' },
-      events: ['restock', 'new'] },
+    { id: 'demo-soccer', category: 'soccer', source: 'mock', markets: ['global'],
+      label: { en: 'Japan NT / J.League limited jerseys' }, events: ['restock', 'new', 'priceDrop'] },
+    { id: 'demo-anime', category: 'anime', source: 'mock', markets: ['global'],
+      label: { en: 'Anime Japan-exclusive merch' }, events: ['restock', 'new'] },
+    { id: 'demo-broken-shop', category: 'anime', source: 'mock', markets: ['global'],
+      query: { fail: true }, label: { en: 'Shop whose page layout changed' } },
   ];
   watches.forEach(validateWatch);
+  // デモでは実際には送らない。無料チャンネル向けは待たずにその回の最後に表示する
   env.proxyUrlTemplate ||= 'https://proxy.example/shop?url={url}';
   env.jpyPerUsd ||= 150;
+  env.webhooks.free ||= 'demo';
+  env.joinUrl ||= 'https://whop.example/japan-drops';
 
   const stateFile = path.join(ROOT, 'data/demo-state.json');
   rmSync(stateFile, { force: true });
@@ -57,7 +69,7 @@ async function demo() {
 
   for (let round = 0; round < 3; round++) {
     console.log(`\n===== ${round + 1}回目の監視 ${round === 0 ? '（初回は現状を記録するだけで通知しません）' : ''}=====`);
-    const n = await runOnce({ watches, env, state, dryRun: true, round });
+    const n = await runOnce({ watches, env, state, dryRun: true, round, flushAll: true });
     if (n === 0) console.log('(通知なし)');
     saveState(stateFile, state);
   }

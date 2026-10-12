@@ -31,6 +31,7 @@ const SCENARIO = {
 };
 
 export function fetchMock(watch, _env, { round = 0 } = {}) {
+  if (watch.query?.fail) throw new Error('HTTP 404 https://example-shop.jp/products/limited');
   const steps = SCENARIO[watch.category] ?? SCENARIO.soccer;
   return steps[Math.min(round, steps.length - 1)];
 }

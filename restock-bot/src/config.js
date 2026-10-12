@@ -21,8 +21,16 @@ export function loadEnv() {
     },
     webhooks: {
       jp: process.env.DISCORD_WEBHOOK_JP || '',
+      // 海外向けはジャンル別のチャンネルに送る。未設定なら GLOBAL にまとめて送る
       global: process.env.DISCORD_WEBHOOK_GLOBAL || '',
+      soccer: process.env.DISCORD_WEBHOOK_SOCCER || '',
+      anime: process.env.DISCORD_WEBHOOK_ANIME || '',
+      free: process.env.DISCORD_WEBHOOK_FREE || '',
+      status: process.env.DISCORD_WEBHOOK_STATUS || '',
     },
+    freeDelayMin: Number(process.env.FREE_DELAY_MIN ?? 30),
+    joinUrl: process.env.JOIN_URL || '',
+    failureThreshold: Number(process.env.FAILURE_THRESHOLD) || 3,
     proxyUrlTemplate: process.env.PROXY_URL_TEMPLATE || '',
     jpyPerUsd: Number(process.env.JPY_PER_USD) || 0,
     pollIntervalSec: Number(process.env.POLL_INTERVAL_SEC) || 300,

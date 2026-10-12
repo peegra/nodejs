@@ -43,7 +43,8 @@ export function formatPrice(item, market, env) {
   return yen;
 }
 
-export function formatEvent(event, market, env) {
+// free: 無料チャンネル向け。遅れて届くことと、有料会員の申し込み先を添える
+export function formatEvent(event, market, env, { free = false } = {}) {
   const t = TEXT[market];
   const { watch, item } = event;
   const label = market === 'jp' ? watch.label.ja : watch.label.en;
@@ -58,8 +59,11 @@ export function formatEvent(event, market, env) {
   if (item.variant) fields.push({ name: t.size, value: item.variant, inline: true });
   if (item.shop) fields.push({ name: t.shop, value: item.shop, inline: true });
 
+  const head = `${t[event.type]}｜${t.category[watch.category] ?? watch.category}｜${label}`;
+  const footer = free ? `${freeNote(env)} ${t.footer}` : t.footer;
+
   return {
-    content: `${t[event.type]}｜${t.category[watch.category] ?? watch.category}｜${label}`,
+    content: free ? `⏱ ${head}` : head,
     embeds: [
       {
         title: truncate(item.title, 256),
@@ -67,11 +71,16 @@ export function formatEvent(event, market, env) {
         color: COLORS[event.type],
         fields,
         thumbnail: item.image ? { url: item.image } : undefined,
-        footer: { text: t.footer },
+        footer: { text: footer },
         timestamp: new Date().toISOString(),
       },
     ],
   };
+}
+
+function freeNote(env) {
+  const early = `Members got this alert ${env.freeDelayMin} min earlier`;
+  return env.joinUrl ? `${early} — join: ${env.joinUrl}.` : `${early}.`;
 }
 
 function truncate(s, n) {
