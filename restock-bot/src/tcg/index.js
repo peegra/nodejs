@@ -51,8 +51,8 @@ const DEMO_PRODUCTS = [
   ['demo-pokemon-box-a', 'ポケモンカード 拡張パック A BOX', 'Pokémon TCG JP booster box A', 6000, '2026-09-26'],
   ['demo-pokemon-box-b', 'ポケモンカード 拡張パック B BOX', 'Pokémon TCG JP booster box B', 6000, '2026-07-18'],
   ['demo-pokemon-special-set', 'ポケモンカード スペシャルセット', 'Pokémon TCG JP special set', 5500, '2026-10-24'],
-  ['demo-onepiece-box-a', 'ワンピースカード ブースター A BOX', 'One Piece Card Game JP booster box A', 5280, '2026-08-30'],
-  ['demo-onepiece-box-b', 'ワンピースカード ブースター B BOX', 'One Piece Card Game JP booster box B', 5280, '2026-06-14'],
+  ['demo-onepiece-box-a', 'ワンピースカード ブースター A BOX', 'One Piece Card Game JP booster box A', 5760, '2026-08-30'],
+  ['demo-onepiece-box-b', 'ワンピースカード ブースター B BOX', 'One Piece Card Game JP booster box B', 5760, '2026-06-14'],
   ['demo-upcoming', 'ポケモンカード 次弾 BOX（予約受付中）', 'Pokémon TCG JP next set (pre-order)', 6000, '2026-12-05'],
 ].map(([id, ja, en, msrpJpy, releaseDate]) => ({ id, name: { ja, en }, msrpJpy, releaseDate, market: { provider: 'mock' } }));
 

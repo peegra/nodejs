@@ -12,4 +12,4 @@ Upcoming Japanese-language releases and their Japanese retail prices. If your tr
 
 {{releases}}
 
-Release dates come from official announcements. Prices are Japanese retail prices including tax.
+Prices are Japanese retail prices including tax. The next main Pokémon expansion had not been officially announced as of the last check — we add releases once they're official.

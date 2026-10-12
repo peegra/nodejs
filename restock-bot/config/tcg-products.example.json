@@ -11,7 +11,7 @@
     "id": "onepiece-jp-box-example",
     "game": "onepiece",
     "name": { "ja": "ワンピースカード ブースターパック（例）BOX", "en": "One Piece Card Game Japanese booster box (example)" },
-    "msrpJpy": 5280,
+    "msrpJpy": 5760,
     "releaseDate": "2026-11-15",
     "market": { "provider": "justtcg", "cardId": "REPLACE-WITH-JUSTTCG-CARD-ID", "condition": "Sealed", "language": "Japanese" }
   }

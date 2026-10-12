@@ -48,7 +48,7 @@ export function renderReleases(releases, { today = new Date().toISOString().slic
       const cls = r.date < today ? ' class="past"' : '';
       return `<tr${cls}><td>${r.date}</td><td>${escapeHtml(r.game)}</td><td>${name}</td><td>${price}</td><td>${escapeHtml(r.note ?? '')}</td></tr>`;
     });
-  return `<div class="table-wrap"><table class="releases"><thead><tr><th>JP release</th><th>Game</th><th>Product</th><th>JP retail (box)</th><th>Notes</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="releases"><thead><tr><th>JP release</th><th>Game</th><th>Product</th><th>JP retail</th><th>Notes</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 export function expandShortcodes(html, data) {

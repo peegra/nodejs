@@ -1,18 +1,34 @@
 [
   {
-    "date": "2026-11-01",
+    "date": "2026-09-16",
     "game": "Pokémon TCG",
-    "name": "[[VERIFY: 次弾の正式な英語名]]",
-    "msrpJpy": 6000,
-    "note": "Booster box price assumes ¥200 per pack × 30 packs.",
+    "name": "30th CELEBRATION (expansion)",
+    "msrpJpy": null,
+    "note": "¥360 per pack. Sold mainly by lottery.",
+    "source": "https://www.30th.pokemon-card.com/product/m6a"
+  },
+  {
+    "date": "2026-10-16",
+    "game": "Pokémon TCG",
+    "name": "30th CELEBRATION Card Set (9 types)",
+    "msrpJpy": 1200,
+    "note": "Price is per set.",
     "source": ""
   },
   {
-    "date": "2026-11-15",
+    "date": "2026-11-21",
     "game": "One Piece Card Game",
-    "name": "[[VERIFY: 次弾の正式な英語名]]",
+    "name": "OP-18 Booster Pack (JP title: 神の支配)",
     "msrpJpy": null,
-    "note": "",
+    "note": "[[VERIFY: OP-18の発売日（11月21日説と「11月中」の情報がある）と価格。OP-17から1パック240円・1BOX 5,760円に改定済み]]",
+    "source": ""
+  },
+  {
+    "date": "2026-12-19",
+    "game": "One Piece Card Game",
+    "name": "Starter Decks ST-37 & ST-38",
+    "msrpJpy": 1430,
+    "note": "Price is per deck.",
     "source": ""
   }
 ]

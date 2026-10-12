@@ -51,7 +51,7 @@ updated: 最終確認日（2026-10-12 の形式）
 
 `npm run check` が通るまで、次を片付けます。
 
-1. **事実確認**: 記事内の `[[VERIFY: …]]`（現在14件）を一つずつ確認し、本文を直して印を消す
+1. **事実確認**: 記事内やデータの `[[VERIFY: …]]` を一つずつ確認し、本文を直して印を消す
 2. **アフィリエイトの登録**: Booking.com、GetYourGuide、Klook などの紹介プログラムに登録し、リンクを `data/affiliates.json` に入れる（報酬率や条件は各社のページで確認）
 3. **ドメインと公開先**: ドメインを取り、`site.config.json` の `baseUrl` を書き換えて、Cloudflare Pages などで公開する
 4. **検索エンジンへの登録**: Google Search Console にサイトと `sitemap.xml` を登録する

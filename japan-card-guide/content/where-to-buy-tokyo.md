@@ -12,7 +12,13 @@ Different kinds of shops are good for different things. Knowing which is which s
 
 ## Pokémon Center stores
 
-The official stores sell Pokémon Center exclusives, promos and merchandise, plus cards when stock allows. Tokyo has several, including large stores in Ikebukuro and Nihonbashi and one in Shibuya. [[VERIFY: 東京のポケモンセンターの店舗一覧と所在地（移転・閉店がないか）]]
+The official stores sell Pokémon Center exclusives, promos and merchandise, plus cards when stock allows. Tokyo stores include:
+
+- **Pokémon Center Tokyo DX** — inside Nihonbashi Takashimaya S.C., about a 5-minute walk from Tokyo Station, next to the Pokémon Café.
+- **Pokémon Center Mega Tokyo** — Sunshine City (Alpa, 2F) in Ikebukuro. It reopened on August 24, 2026 after a temporary closure, with entry restrictions in place for a while.
+- **Pokémon Center Shibuya** — Shibuya PARCO, 6F.
+
+Check the [official store list](https://www.pokemon.co.jp/shop/en/) for opening hours and any entry restrictions before you go.
 
 **Best for:** exclusives and merchandise. **Don't expect:** new booster boxes on release day.
 
@@ -22,8 +28,6 @@ Specialty card shops sell **singles** (individual cards) and sometimes older sea
 
 - **Akihabara** has a dense cluster of card shops within a few blocks.
 - **Nakano Broadway** is a shopping complex full of collectible and hobby shops.
-
-[[VERIFY: 秋葉原・中野ブロードウェイのカードショップの状況（2026年時点）]]
 
 **Best for:** singles and older sets. **Tip:** compare prices between a few shops before buying.
 

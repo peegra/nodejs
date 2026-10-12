@@ -12,7 +12,7 @@ This route mixes the official store, card shop districts and a little sightseein
 
 ## Morning: Pokémon Center
 
-Start at a Pokémon Center when it opens to look for exclusives and merchandise. Weekday mornings are calmer than weekends.
+Start at a Pokémon Center when it opens to look for exclusives and merchandise. Weekday mornings are calmer than weekends. Some stores limit entry on busy days, so check the [official store list](https://www.pokemon.co.jp/shop/en/) for hours and notices first.
 
 ## Midday: Akihabara
 
@@ -32,4 +32,4 @@ Staying near Akihabara or along the Yamanote Line keeps travel time short.
 
 {{affiliates ids=esim-japan,tour-akihabara}}
 
-[[VERIFY: 各スポットの営業時間と、この順番で回る移動時間の目安]]
+Opening hours vary by shop and change around holidays — check each shop's website on the day.
