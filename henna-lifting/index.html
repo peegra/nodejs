@@ -10,72 +10,115 @@
 <meta property="og:description" content="おにぎり、生卵、すいか、スマホ…何回蹴り上げられる？">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
 <style>
-  /* 青空と芝生のグラウンド1枚で見せる、単一テーマのゲーム画面 */
+  /* 8ビット機のゲーム画面: 黒地に白枠のウインドウ、限られた色数、ドットフォント */
   :root {
-    --sky: #74c0fc; --grass: #40c057; --ink: #1c3d5a; --ink-soft: #4d6a82;
-    --card: rgba(255,255,255,0.95); --line: #e3eaf0; --accent: #f76707; --gold: #ffd43b;
-    --font-display: "Dela Gothic One", "Hiragino Sans", system-ui, sans-serif;
-    --font-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+    --black: #000000; --white: #fcfcfc; --sky: #5c94fc; --grass: #00a800;
+    --red: #e40058; --yellow: #fcd800; --gray: #7c7c7c;
+    --font-dot: "DotGothic16", "Hiragino Sans", monospace;
+    --font-pixel: "Press Start 2P", "Courier New", monospace;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--grass); font-family: var(--font-body); color: var(--ink); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--black); font-family: var(--font-dot); color: var(--white); }
   canvas { display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
-  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(28,61,90,0.25); }
+  /* ブラウン管の走査線 */
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 20;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px); }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: rgba(0,0,0,0.35); }
   .overlay[hidden] { display: none; }
-  .panel { width: min(420px, 100%); max-height: 100%; overflow-y: auto; background: var(--card); border-radius: 20px; padding: 20px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-  h1 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 400; font-size: 1.7rem; text-align: center; text-wrap: balance; letter-spacing: .02em; }
-  .lead { margin: 0 0 14px; text-align: center; font-size: .9rem; color: var(--ink-soft); }
-  .object-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; margin-bottom: 8px; border: 2px solid var(--line); border-radius: 14px; background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-  .object-btn:active { transform: scale(0.98); border-color: var(--accent); }
-  .object-btn:focus-visible, .actions > *:focus-visible, #mute:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .object-icon { font-size: 2rem; width: 44px; text-align: center; }
-  .tofu-icon { display: inline-block; width: 28px; height: 28px; border-radius: 5px; background: #fffdf5; border: 2px solid #e9e3cf; vertical-align: middle; }
-  .object-text { flex: 1; display: flex; flex-direction: column; }
-  .object-text small { color: #6b8499; font-size: .78rem; }
-  .object-best { font-size: .78rem; color: var(--accent); font-weight: 700; white-space: nowrap; }
-  .result-title { margin: 0; text-align: center; font-size: 1.1rem; color: #4d6a82; }
-  .result-score { margin: 4px 0; text-align: center; font-family: var(--font-display); font-weight: 400; font-size: 3.4rem; font-variant-numeric: tabular-nums; }
-  .result-extra { margin: 0; text-align: center; font-weight: 700; }
-  .result-line { margin: 10px 0 16px; text-align: center; font-size: 1.05rem; }
-  .record { display: block; margin: 0 auto 6px; width: fit-content; padding: 2px 10px; border-radius: 999px; background: var(--gold); font-weight: 800; font-size: .85rem; }
+  .window { width: min(420px, 100%); max-height: 100%; overflow-y: auto; padding: 18px 14px;
+    background: var(--black); border: 4px solid var(--white); box-shadow: 0 0 0 4px var(--black), 8px 8px 0 4px rgba(0,0,0,0.5); }
+
+  /* タイトル画面 */
+  #title { flex-direction: column; gap: 28px; background: rgba(0,0,0,0.25); cursor: pointer; text-align: center; }
+  .logo { margin: 0; font-family: var(--font-dot); font-weight: 400; font-size: clamp(2.4rem, 13vw, 3.6rem); line-height: 1.05;
+    color: var(--yellow); text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--black); letter-spacing: .04em; }
+  .logo small { display: block; font-size: .42em; color: var(--white); text-shadow: 3px 3px 0 var(--black); letter-spacing: .3em; }
+  .press { margin: 0; font-family: var(--font-pixel); font-size: 14px; color: var(--white); text-shadow: 3px 3px 0 var(--black); animation: blink 1s steps(2, start) infinite; }
+  .hiscore { margin: 0; font-family: var(--font-pixel); font-size: 11px; color: var(--white); text-shadow: 2px 2px 0 var(--black); }
+  .copyright { margin: 0; font-family: var(--font-pixel); font-size: 8px; color: var(--white); opacity: .8; }
+
+  /* ステージ選択 */
+  .heading { margin: 0 0 14px; font-family: var(--font-pixel); font-weight: 400; font-size: 14px; text-align: center; color: var(--yellow); }
+  .object-btn { position: relative; display: grid; grid-template-columns: 40px 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+    width: 100%; padding: 8px 6px 8px 22px; border: none; background: transparent; color: var(--white); text-align: left; font: inherit; cursor: pointer; }
+  .object-btn + .object-btn { border-top: 2px dashed #333; }
+  .object-btn::before { content: "▶"; position: absolute; left: 2px; top: 50%; transform: translateY(-50%); color: var(--yellow); visibility: hidden; }
+  .object-btn:hover::before, .object-btn:focus-visible::before { visibility: visible; animation: blink .6s steps(2, start) infinite; }
+  .object-btn:focus-visible { outline: none; background: #111; }
+  .stage-no { grid-column: 1 / -1; font-family: var(--font-pixel); font-size: 8px; color: var(--gray); margin-bottom: 2px; }
+  .object-icon { font-size: 1.9rem; text-align: center; image-rendering: pixelated; }
+  .tofu-icon { display: inline-block; width: 26px; height: 26px; background: var(--white); box-shadow: inset -4px -4px 0 #c8c0a8; vertical-align: middle; }
+  .object-text { display: flex; flex-direction: column; min-width: 0; }
+  .object-text strong { font-weight: 400; font-size: 1.1rem; }
+  .object-text small { font-size: .78rem; color: #bcbcbc; }
+  .object-best { font-family: var(--font-pixel); font-size: 9px; color: var(--yellow); white-space: nowrap; }
+
+  /* リザルト */
+  .result-head { margin: 0; font-family: var(--font-pixel); font-size: 20px; text-align: center; color: var(--red); text-shadow: 3px 3px 0 #500020; }
+  .result-title { margin: 12px 0 0; text-align: center; font-size: 1rem; color: #bcbcbc; }
+  .result-score { margin: 10px 0 4px; text-align: center; font-family: var(--font-pixel); font-size: 44px; color: var(--white); text-shadow: 4px 4px 0 var(--gray); }
+  .result-score::after { content: " KICKS"; font-size: 10px; text-shadow: none; color: #bcbcbc; }
+  .result-rank { margin: 6px 0 0; text-align: center; font-size: 1.15rem; color: var(--yellow); }
+  .result-rank::before { content: "しょうごう："; color: #bcbcbc; font-size: .85rem; }
+  .result-extra { margin: 6px 0 0; text-align: center; font-size: .95rem; }
+  .result-line { margin: 12px 0 16px; padding: 10px; border: 2px solid var(--white); font-size: 1rem; line-height: 1.6; }
+  .result-line::before { content: "▼ "; color: var(--yellow); }
+  .record { display: block; margin: 8px auto 0; width: fit-content; font-family: var(--font-pixel); font-size: 11px; color: var(--yellow); animation: blink .5s steps(2, start) infinite; }
   .record[hidden] { display: none; }
-  .actions { display: grid; gap: 8px; }
-  .actions { grid-template-columns: 1fr 1fr; }
-  .actions > * { display: block; padding: 14px; border: none; border-radius: 14px; font: inherit; font-weight: 700; font-size: 1rem; text-align: center; text-decoration: none; cursor: pointer; }
-  .actions .primary, .actions .secondary { grid-column: 1 / -1; }
-  .primary { background: var(--accent); color: #fff; }
-  .secondary { background: #e7f0f7; color: var(--ink); }
-  .share { background: var(--ink); color: #fff; }
-  .copy { background: #fff; color: var(--ink); border: 2px solid var(--line) !important; }
-  #mute { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); width: 40px; height: 40px; border: none; border-radius: 50%; background: rgba(255,255,255,0.8); font-size: 1.2rem; cursor: pointer; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .actions > * { display: block; padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
+    font-family: var(--font-dot); font-size: 1rem; text-align: center; text-decoration: none; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
+  .actions > *:active { transform: translate(4px, 4px); box-shadow: none; }
+  .actions > *:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+  .actions .primary { grid-column: 1 / -1; background: var(--red); }
+  .actions .secondary { grid-column: 1 / -1; }
+
+  #mute { position: fixed; z-index: 30; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
+    width: 40px; height: 40px; border: 3px solid var(--white); background: var(--black); font-size: 1.1rem; cursor: pointer; }
+  #mute:focus-visible { outline: 3px solid var(--yellow); }
+
+  @keyframes blink { to { visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) { .press, .record, .object-btn::before { animation: none !important; } }
 </style>
 </head>
 <body>
 <canvas id="stage"></canvas>
 <button id="mute" aria-label="音のオンオフ">🔊</button>
 
-<div id="menu" class="overlay">
-  <div class="panel">
-    <h1>変なものリフティング</h1>
-    <p class="lead">モノをタップして蹴り上げよう。何を蹴る？</p>
+<div id="title" class="overlay">
+  <h1 class="logo"><small>へんなもの</small>変なもの<br>リフティング</h1>
+  <p class="press">TAP TO START</p>
+  <p class="hiscore">HI-SCORE <span id="hiscore">00000</span></p>
+  <p class="copyright">© 2026 HENNA LIFTING</p>
+</div>
+
+<div id="menu" class="overlay" hidden>
+  <div class="window">
+    <h2 class="heading">STAGE SELECT</h2>
     <div id="object-list"></div>
   </div>
 </div>
 
 <div id="result" class="overlay" hidden>
-  <div class="panel">
-    <span id="result-record" class="record" hidden>自己ベスト更新！</span>
+  <div class="window">
+    <p id="result-head" class="result-head">GAME OVER</p>
+    <span id="result-record" class="record" hidden>NEW RECORD!</span>
     <p id="result-title" class="result-title"></p>
     <p id="result-score" class="result-score"></p>
+    <p id="result-rank" class="result-rank"></p>
     <p id="result-extra" class="result-extra"></p>
     <p id="result-line" class="result-line"></p>
     <div class="actions">
-      <button id="retry" class="primary">もう一回</button>
-      <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに投稿</a>
-      <button id="copy" class="copy">結果をコピー</button>
-      <button id="change" class="secondary">モノを変える</button>
+      <button id="retry" class="primary">もういちど</button>
+      <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに とうこう</a>
+      <button id="copy" class="copy">けっかを コピー</button>
+      <button id="change" class="secondary">ステージ せんたく</button>
     </div>
   </div>
 </div>

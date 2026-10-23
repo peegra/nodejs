@@ -2,13 +2,19 @@ import { OBJECTS, getObject } from './objects.js';
 import { WORLD, createBody, remainingPct, step, tryKick } from './physics.js';
 
 const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d');
+const screen = canvas.getContext('2d');
+// 低い解像度で描いてから拡大し、昔のゲーム機のようなドット絵に見せる
+const PIX = 0.5;
+const buf = document.createElement('canvas');
+buf.width = WORLD.width * PIX;
+buf.height = WORLD.height * PIX;
+const ctx = buf.getContext('2d');
 const $ = (id) => document.getElementById(id);
 
 const STEP = 1 / 120;
 const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const DISPLAY_FONT = '"Dela Gothic One","Hiragino Sans",system-ui,sans-serif';
-const BODY_FONT = '"Zen Maru Gothic","Hiragino Maru Gothic ProN",system-ui,sans-serif';
+const PIXEL_FONT = '"Press Start 2P",monospace';
+const DOT_FONT = '"DotGothic16",monospace';
 
 const store = {
   get(key, fallback) {
@@ -55,7 +61,7 @@ function ensureAudio() {
   }
   if (audio?.state === 'suspended') audio.resume();
 }
-function tone(freq, dur = 0.08, type = 'triangle', gain = 0.25, slideTo) {
+function tone(freq, dur = 0.08, type = 'square', gain = 0.1, slideTo) {
   if (state.muted || !audio) return;
   const t = audio.currentTime;
   const osc = audio.createOscillator();
@@ -104,23 +110,39 @@ function toWorld(clientX, clientY) {
   return { x: (clientX * dpr - ox) / scale, y: (clientY * dpr - oy) / scale };
 }
 
-// ---------- 画面遷移 ----------
+// ---------- 画面遷移（タイトル → ステージ選択 → プレイ → リザルト） ----------
+function showTitle() {
+  state.screen = 'title';
+  $('menu').hidden = true;
+  $('result').hidden = true;
+  $('title').hidden = false;
+  const total = Object.values(state.best).reduce((a, b) => a + b, 0);
+  $('hiscore').textContent = String(total).padStart(5, '0');
+}
+
 function showMenu() {
+  ensureAudio();
+  tone(880, 0.06);
   state.screen = 'menu';
+  $('title').hidden = true;
   $('result').hidden = true;
   $('menu').hidden = false;
   const list = $('object-list');
   list.innerHTML = '';
-  for (const def of OBJECTS) {
+  OBJECTS.forEach((def, i) => {
     const btn = document.createElement('button');
     btn.className = 'object-btn';
-    btn.innerHTML = `<span class="object-icon">${def.emoji || '<span class="tofu-icon"></span>'}</span>
+    btn.innerHTML = `<span class="stage-no">STAGE ${i + 1}</span>
+      <span class="object-icon">${def.emoji || '<span class="tofu-icon"></span>'}</span>
       <span class="object-text"><strong>${def.name}</strong><small>${def.intro}</small></span>
-      <span class="object-best">${state.best[def.id] ? `最高 ${state.best[def.id]}回` : ''}</span>`;
+      <span class="object-best">HI ${String(state.best[def.id] ?? 0).padStart(3, '0')}</span>`;
     btn.addEventListener('click', () => startGame(def.id));
     list.appendChild(btn);
-  }
+  });
+  list.querySelector('button')?.focus({ preventScroll: true });
 }
+
+$('title').addEventListener('click', showMenu);
 
 function startGame(id) {
   ensureAudio();
@@ -134,6 +156,7 @@ function startGame(id) {
   state.overTimer = 0;
   state.shake = 0;
   state.screen = 'play';
+  $('title').hidden = true;
   $('menu').hidden = true;
   $('result').hidden = true;
 }
@@ -147,13 +170,24 @@ function endGame() {
     state.best[def.id] = score;
     store.set('best', state.best);
   }
-  $('result-title').textContent = `${def.name}リフティング`;
-  $('result-score').textContent = `${score}回`;
+  $('result-head').textContent = body.state === 'broken' ? 'BROKEN!' : 'GAME OVER';
+  $('result-title').textContent = `STAGE ${OBJECTS.indexOf(def) + 1}　${def.name}`;
+  $('result-score').textContent = String(score).padStart(3, '0');
+  $('result-rank').textContent = rankTitle(def, score);
   $('result-extra').textContent = extraLine(def, body);
   $('result-line').textContent = body.state === 'broken' ? def.breakLine : def.groundLine;
   $('result-record').hidden = !isRecord || score === 0;
   updateShareLink();
   $('result').hidden = false;
+}
+
+// スコアに応じた称号
+export function rankTitle(def, score) {
+  if (score >= 50) return `でんせつの ${def.name}しょくにん`;
+  if (score >= 30) return `${def.name}の エース`;
+  if (score >= 15) return 'レギュラー';
+  if (score >= 5) return 'サッカーぶいん';
+  return 'みならい';
 }
 
 function extraLine(def, body) {
@@ -167,7 +201,7 @@ function extraLine(def, body) {
 function shareText() {
   const { def, body } = state;
   const extra = extraLine(def, body);
-  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！${extra ? `（${extra}）` : ''} #変なものリフティング`;
+  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def, body.kicks)}」${extra ? `（${extra}）` : ''} #変なものリフティング`;
 }
 
 // X の投稿画面へのリンク（スマホの共有メニューが使えない環境でも動くように、普通のリンクにしている）
@@ -180,11 +214,11 @@ async function copyResult() {
   const text = `${shareText()} ${location.href.split('#')[0]}`;
   try {
     await navigator.clipboard.writeText(text);
-    $('copy').textContent = 'コピーしました';
+    $('copy').textContent = 'コピー できた！';
   } catch {
-    $('copy').textContent = 'コピーできませんでした';
+    $('copy').textContent = 'コピー できなかった';
   }
-  setTimeout(() => ($('copy').textContent = '結果をコピー'), 1600);
+  setTimeout(() => ($('copy').textContent = 'けっかを コピー'), 1600);
 }
 
 $('retry').addEventListener('click', () => startGame(state.def.id));
@@ -207,13 +241,13 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!result) return;
 
   state.feet.push({ x: p.x, y: p.y + body.r * 0.6, life: 0.18, flip: result.offset > 0 });
-  tone(KICK_PITCH[def.id] ?? 500, def.id === 'watermelon' ? 0.12 : 0.07, def.id === 'balloon' ? 'sine' : 'triangle');
+  tone(KICK_PITCH[def.id] ?? 500, def.id === 'watermelon' ? 0.12 : 0.07);
 
-  if (result.perfect) addPopup('Perfect!', body.x, body.y - body.r - 10, '#ffd43b');
+  if (result.perfect) addPopup('PERFECT!', body.x, body.y - body.r - 10, '#fcd800');
   if (result.shrank) burst(body.x, body.y, def.id === 'onigiri' ? '#ffffff' : '#f8f4e3', 7, 2.5);
   if (result.cracked && def.fragile) {
     noise(0.08, 0.2);
-    addPopup('ピキッ', body.x + body.r, body.y - body.r, '#ff8787');
+    addPopup('CRACK!', body.x + body.r, body.y - body.r, '#e40058');
   }
   if (result.broke) {
     noise(0.3, 0.35);
@@ -241,7 +275,7 @@ function landingEffect() {
   const colors = { egg: '#ffd43b', watermelon: '#e03131', phone: '#adb5bd', onigiri: '#ffffff', tofu: '#f8f4e3' };
   if (colors[def.id]) burst(body.x, WORLD.ground - 4, colors[def.id], def.id === 'watermelon' ? 30 : 16, 4);
   if (def.id === 'egg' || def.id === 'watermelon') noise(0.35, 0.35);
-  else tone(220, 0.25, 'sine', 0.2, 90);
+  else tone(330, 0.35, 'square', 0.1, 80);
 }
 
 // ---------- 更新 ----------
@@ -262,7 +296,8 @@ function update(dt) {
         const msgs = def.notifications;
         state.notice = { text: msgs[Math.floor(Math.random() * msgs.length)], life: 1.8 };
         state.nextNoticeAt = 2.5 + Math.random() * 3;
-        tone(1320, 0.06, 'sine', 0.15);
+        tone(1320, 0.05);
+        setTimeout(() => tone(1760, 0.05), 70);
       }
     }
   }
@@ -294,33 +329,36 @@ function update(dt) {
 }
 
 // ---------- 描画 ----------
+function drawCloud(x, y) {
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillRect(x, y, 64, 16);
+  ctx.fillRect(x + 12, y - 12, 40, 12);
+  ctx.fillRect(x + 24, y - 20, 16, 8);
+}
+
 function drawBackground() {
-  const sky = ctx.createLinearGradient(0, 0, 0, WORLD.ground);
-  sky.addColorStop(0, '#74c0fc');
-  sky.addColorStop(1, '#d0ebff');
-  ctx.fillStyle = sky;
+  ctx.fillStyle = '#5c94fc';
   ctx.fillRect(-200, -400, WORLD.width + 400, WORLD.ground + 400);
+  drawCloud(40, 230);
+  drawCloud(290, 320);
+  drawCloud(170, 430);
 
   // 遠くのゴール
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(110, WORLD.ground - 90, 180, 90);
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = 1;
-  for (let x = 120; x < 290; x += 12) {
-    ctx.beginPath();
-    ctx.moveTo(x, WORLD.ground - 88);
-    ctx.lineTo(x, WORLD.ground);
-    ctx.stroke();
-  }
+  ctx.fillStyle = 'rgba(252,252,252,0.45)';
+  for (let x = 118; x < 290; x += 16) ctx.fillRect(x, WORLD.ground - 88, 2, 88);
+  for (let y = WORLD.ground - 76; y < WORLD.ground; y += 16) ctx.fillRect(110, y, 180, 2);
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillRect(106, WORLD.ground - 96, 188, 8);
+  ctx.fillRect(106, WORLD.ground - 96, 8, 96);
+  ctx.fillRect(286, WORLD.ground - 96, 8, 96);
 
   // 芝生（しま模様）
   for (let i = 0; i < 8; i++) {
-    ctx.fillStyle = i % 2 ? '#51cf66' : '#40c057';
+    ctx.fillStyle = i % 2 ? '#58d854' : '#00a800';
     ctx.fillRect(-200 + i * 100, WORLD.ground, 100, WORLD.height - WORLD.ground + 400);
   }
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(-200, WORLD.ground, WORLD.width + 400, 3);
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillRect(-200, WORLD.ground, WORLD.width + 400, 4);
 }
 
 function drawCracks(body, count, color) {
@@ -393,9 +431,7 @@ function drawEffects() {
   for (const p of state.particles) {
     ctx.globalAlpha = Math.min(1, p.life * 2);
     ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y, p.size, p.size * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
   }
   ctx.globalAlpha = 1;
 
@@ -416,66 +452,86 @@ function drawEffects() {
   ctx.textAlign = 'center';
   for (const p of state.popups) {
     ctx.globalAlpha = Math.min(1, p.life * 2);
-    ctx.font = `22px ${DISPLAY_FONT}`;
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.strokeText(p.text, p.x, p.y);
+    ctx.font = `16px ${PIXEL_FONT}`;
+    ctx.fillStyle = '#000';
+    ctx.fillText(p.text, p.x + 2, p.y + 2);
     ctx.fillStyle = p.color;
     ctx.fillText(p.text, p.x, p.y);
   }
   ctx.globalAlpha = 1;
 }
 
+function pixelText(text, x, y, font, color, shadow = '#000') {
+  ctx.font = font;
+  ctx.fillStyle = shadow;
+  ctx.fillText(text, x + 3, y + 3);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+function retroWindow(x, y, w, h) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillRect(x + 4, y + 4, w - 8, 4);
+  ctx.fillRect(x + 4, y + h - 8, w - 8, 4);
+  ctx.fillRect(x + 4, y + 4, 4, h - 8);
+  ctx.fillRect(x + w - 8, y + 4, 4, h - 8);
+}
+
 function drawHud() {
   const { def, body } = state;
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 6;
-  ctx.font = `72px ${DISPLAY_FONT}`;
-  ctx.strokeText(String(body.kicks), WORLD.width / 2, 120);
-  ctx.fillText(String(body.kicks), WORLD.width / 2, 120);
-  ctx.font = `700 16px ${BODY_FONT}`;
-  ctx.fillStyle = 'rgba(20,40,60,0.75)';
-  ctx.fillText(`${def.name}${state.best[def.id] ? `　最高 ${state.best[def.id]}回` : ''}`, WORLD.width / 2, 150);
+  ctx.textBaseline = 'alphabetic';
+  pixelText(String(body.kicks).padStart(3, '0'), WORLD.width / 2, 120, `64px ${PIXEL_FONT}`, '#fcfcfc');
+  ctx.textAlign = 'left';
+  pixelText(`STAGE ${OBJECTS.indexOf(def) + 1}`, 16, 36, `16px ${PIXEL_FONT}`, '#fcd800');
+  ctx.textAlign = 'right';
+  pixelText(`HI ${String(state.best[def.id] ?? 0).padStart(3, '0')}`, WORLD.width - 64, 36, `16px ${PIXEL_FONT}`, '#fcfcfc');
+  ctx.textAlign = 'center';
+  pixelText(def.name, WORLD.width / 2, 164, `24px ${DOT_FONT}`, '#fcfcfc');
 
   if (body.state === 'ready') {
-    ctx.font = `700 20px ${BODY_FONT}`;
-    ctx.fillStyle = '#1c3d5a';
-    ctx.fillText('モノをタップして蹴り上げよう', WORLD.width / 2, body.y + body.r + 44);
-    ctx.font = `500 14px ${BODY_FONT}`;
-    ctx.fillText('左側を蹴ると右へ、右側を蹴ると左へ飛ぶ', WORLD.width / 2, body.y + body.r + 68);
+    const y = Math.min(WORLD.ground - 120, body.y + body.r + 24);
+    retroWindow(28, y, WORLD.width - 56, 92);
+    ctx.font = `24px ${DOT_FONT}`;
+    ctx.fillStyle = '#fcfcfc';
+    ctx.fillText('モノを タップして けりあげろ！', WORLD.width / 2, y + 40);
+    ctx.font = `20px ${DOT_FONT}`;
+    ctx.fillStyle = '#fcd800';
+    ctx.fillText('はしを けると はんたいへ とぶ', WORLD.width / 2, y + 72);
   }
 
   if (state.notice) {
-    const y = 20 + Math.min(1, (1.8 - state.notice.life) * 6) * 10;
-    ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    ctx.beginPath();
-    ctx.roundRect(24, y, WORLD.width - 48, 54, 14);
-    ctx.fill();
+    const y = 48 + Math.min(1, (1.8 - state.notice.life) * 6) * 8;
+    retroWindow(20, y, WORLD.width - 40, 72);
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#495057';
-    ctx.font = `500 12px ${BODY_FONT}`;
-    ctx.fillText('通知', 40, y + 20);
-    ctx.fillStyle = '#212529';
-    ctx.font = `700 15px ${BODY_FONT}`;
-    ctx.fillText(state.notice.text, 40, y + 40);
+    ctx.font = `12px ${PIXEL_FONT}`;
+    ctx.fillStyle = '#e40058';
+    ctx.fillText('NEW MESSAGE', 36, y + 30);
+    ctx.font = `20px ${DOT_FONT}`;
+    ctx.fillStyle = '#fcfcfc';
+    ctx.fillText(state.notice.text, 36, y + 56);
   }
 }
 
 function render() {
   const { scale, ox, oy } = state.view;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#40c057';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const shake = state.shake > 0 ? (Math.random() - 0.5) * 12 * state.shake : 0;
-  ctx.setTransform(scale, 0, 0, scale, ox + shake * scale, oy);
+  const shake = state.shake > 0 ? Math.round((Math.random() - 0.5) * 12 * state.shake) : 0;
+  ctx.setTransform(PIX, 0, 0, PIX, shake * PIX, 0);
+  ctx.imageSmoothingEnabled = false;
   drawBackground();
-  if (state.body) {
+  if (state.body && state.screen !== 'title') {
     drawObject();
     drawEffects();
-    if (state.screen !== 'menu') drawHud();
+    if (state.screen === 'play' || state.screen === 'over') drawHud();
   }
+  // 小さく描いた画面を、ぼかさずに拡大する
+  screen.setTransform(1, 0, 0, 1, 0, 0);
+  screen.imageSmoothingEnabled = false;
+  screen.fillStyle = '#000';
+  screen.fillRect(0, 0, canvas.width, canvas.height);
+  screen.drawImage(buf, ox, oy, WORLD.width * scale, WORLD.height * scale);
 }
 
 // ---------- ループ ----------
@@ -495,7 +551,7 @@ function frame(now) {
 // メニューの背景にもボールを置いておく
 state.def = getObject('ball');
 state.body = createBody(state.def);
-showMenu();
+showTitle();
 requestAnimationFrame(frame);
 
 // 動作確認用（自動テストからゲームの状態を見られるようにする）
