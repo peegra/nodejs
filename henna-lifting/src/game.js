@@ -43,6 +43,8 @@ const state = {
   seeds: [], // すいかの種（飛んできて画面に張り付き、垂れて下に溜まる）
   pile: [], // 画面の下に溜まった種の高さ（横 20px ごと）
   streaks: [], // 風の筋と葉っぱ
+  flyers: [], // タイトル画面を横切るモノ
+  nextFlyerAt: 0.6,
   streakAcc: 0,
   cloudShift: 0,
   call: null, // スマホの着信画面
@@ -432,6 +434,55 @@ function updateSeeds(dt) {
   }
 }
 
+// タイトル画面: ランダムなモノが、蹴られたように回転しながら画面を横切る
+function updateFlyers(dt) {
+  if (state.screen !== 'title') {
+    state.flyers = [];
+    return;
+  }
+  state.nextFlyerAt -= dt;
+  if (state.nextFlyerAt <= 0) {
+    const def = OBJECTS[Math.floor(Math.random() * OBJECTS.length)];
+    const fromLeft = Math.random() < 0.5;
+    state.flyers.push({
+      emoji: def.emoji,
+      x: fromLeft ? -60 : WORLD.width + 60,
+      y: 320 + Math.random() * 280,
+      vx: (fromLeft ? 1 : -1) * (150 + Math.random() * 170),
+      vy: -(380 + Math.random() * 320),
+      angle: 0,
+      spin: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 6),
+      size: 50 + Math.random() * 40,
+    });
+    state.nextFlyerAt = 0.9 + Math.random() * 1.8;
+  }
+  for (const f of state.flyers) {
+    f.vy += 520 * dt;
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    f.angle += f.spin * dt;
+    if (f.y > WORLD.ground - f.size / 2 && f.vy > 0) {
+      f.y = WORLD.ground - f.size / 2;
+      f.vy *= -0.55; // 芝生で弾む
+    }
+  }
+  state.flyers = state.flyers.filter((f) => f.x > -120 && f.x < WORLD.width + 120);
+}
+
+function drawFlyers() {
+  for (const f of state.flyers) {
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.angle);
+    ctx.font = `${f.size}px ${EMOJI_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(f.emoji, 0, 0);
+    ctx.restore();
+  }
+}
+
 // 画面全体を流れる風の筋と葉っぱ、雲の流れ
 function updateWind(dt) {
   const { def, body } = state;
@@ -517,6 +568,7 @@ function update(dt) {
   state.feet = state.feet.filter((f) => f.life > 0);
   updateSeeds(dt);
   updateWind(dt);
+  updateFlyers(dt);
   state.shake = Math.max(0, state.shake - dt);
 }
 
@@ -641,6 +693,18 @@ function pixelText(text, x, y, font, color, shadow = '#000') {
   ctx.fillText(text, x, y);
 }
 
+// 幅 maxWidth に収まるまで文字を小さくして書く（長い名前でも枠からはみ出さないように）
+function fitText(text, x, y, size, maxWidth, color) {
+  let px = size;
+  ctx.font = `${px}px ${DOT_FONT}`;
+  while (px > 12 && ctx.measureText(text).width > maxWidth) {
+    px -= 1;
+    ctx.font = `${px}px ${DOT_FONT}`;
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
 function retroWindow(x, y, w, h) {
   ctx.fillStyle = '#000';
   ctx.fillRect(x, y, w, h);
@@ -667,13 +731,11 @@ function drawHud() {
 
   if (body.state === 'ready') {
     const y = Math.min(WORLD.ground - 120, body.y + body.r + 24);
-    retroWindow(28, y, WORLD.width - 56, 92);
-    ctx.font = `24px ${DOT_FONT}`;
-    ctx.fillStyle = '#fcfcfc';
-    ctx.fillText('モノを タップして けりあげろ！', WORLD.width / 2, y + 40);
-    ctx.font = `20px ${DOT_FONT}`;
-    ctx.fillStyle = '#fcd800';
-    ctx.fillText('はしを けると はんたいへ とぶ', WORLD.width / 2, y + 72);
+    const w = WORLD.width - 56;
+    retroWindow(28, y, w, 92);
+    const inner = w - 40; // 白枠の内側に収まる幅
+    fitText(`${def.name}タップでリフティング`, WORLD.width / 2, y + 42, 24, inner, '#fcfcfc');
+    fitText('めざせ！リフティングキング！', WORLD.width / 2, y + 74, 20, inner, '#fcd800');
   }
 
 }
@@ -788,6 +850,7 @@ function render() {
   ctx.setTransform(PIX, 0, 0, PIX, shake * PIX, 0);
   ctx.imageSmoothingEnabled = false;
   drawBackground();
+  if (state.screen === 'title') drawFlyers();
   if (state.body && state.screen !== 'title') {
     drawStreaks();
     drawObject();
