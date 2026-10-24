@@ -60,13 +60,18 @@ const state = {
 let audio = null;
 function ensureAudio() {
   if (!audio) {
+    // iPhone は消音モードだと Web Audio が鳴らないので、音楽再生扱いにしてもらう（Safari 17 以降）
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch {}
     try {
       audio = new AudioContext();
     } catch {
       audio = null;
     }
   }
-  if (audio?.state === 'suspended') audio.resume();
+  // iPhone は電話やアプリ切り替えのあと 'interrupted' になって止まる
+  if (audio && audio.state !== 'running') audio.resume().catch(() => {});
 }
 function tone(freq, dur = 0.08, type = 'square', gain = 0.1, slideTo) {
   if (state.muted || !audio) return;
