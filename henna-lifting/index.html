@@ -39,12 +39,15 @@
   .logo { margin: 0; font-family: var(--font-dot); font-weight: 400; font-size: clamp(2.4rem, 13vw, 3.6rem); line-height: 1.05;
     color: var(--yellow); text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--black); letter-spacing: .04em; }
   .logo small { display: block; font-size: .42em; color: var(--white); text-shadow: 3px 3px 0 var(--black); letter-spacing: .3em; }
-  .press { margin: 0; font-family: var(--font-pixel); font-size: 14px; color: var(--white); text-shadow: 3px 3px 0 var(--black); animation: blink 1s steps(2, start) infinite; }
+  /* タイトルのメニュー（昔のゲームのように ▶ カーソルで選ぶ。何も触っていないときは上の項目にカーソル） */
+  .title-menu { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .title-item { position: relative; padding: 4px 4px 4px 30px; border: none; background: none; color: var(--white);
+    font-family: var(--font-dot); font-size: 1.35rem; text-shadow: 3px 3px 0 var(--black); cursor: pointer; }
+  .title-item::before { content: "▶"; position: absolute; left: 4px; color: var(--yellow); visibility: hidden; }
+  .title-item:hover::before, .title-item:focus-visible::before,
+  .title-menu:not(:hover):not(:focus-within) .title-item:first-child::before { visibility: visible; animation: blink 1s steps(2, start) infinite; }
+  .title-item:focus-visible { outline: none; color: var(--yellow); }
   .hiscore { margin: 0; font-family: var(--font-pixel); font-size: 11px; color: var(--white); text-shadow: 2px 2px 0 var(--black); }
-  .title-btn { padding: 10px 18px; border: 3px solid var(--white); background: var(--black); color: var(--yellow);
-    font-family: var(--font-dot); font-size: 1.05rem; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
-  .title-btn:active { transform: translate(4px, 4px); box-shadow: none; }
-  .title-btn:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
   .copyright { margin: 0; font-family: var(--font-pixel); font-size: 8px; color: var(--white); opacity: .8; }
 
   /* ステージ選択 */
@@ -114,7 +117,7 @@
   #mute:focus-visible { outline: 3px solid var(--yellow); }
 
   @keyframes blink { to { visibility: hidden; } }
-  @media (prefers-reduced-motion: reduce) { .press, .record, .new-head, .object-btn::before { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .title-item::before, .record, .new-head, .object-btn::before { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -123,8 +126,10 @@
 
 <div id="title" class="overlay">
   <h1 class="logo"><small>へんなもの</small>変なもの<br>リフティング</h1>
-  <p class="press">TAP TO START</p>
-  <button id="open-titles" class="title-btn">獲得したしょうごう</button>
+  <nav class="title-menu">
+    <button id="start-game" class="title-item">スタート</button>
+    <button id="open-titles" class="title-item">獲得したしょうごう</button>
+  </nav>
   <p class="hiscore">HI-SCORE <span id="hiscore">00000</span></p>
   <p class="copyright">© 2026 HENNA LIFTING</p>
 </div>
