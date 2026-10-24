@@ -70,9 +70,11 @@
   .result-score::after { content: " KICKS"; font-size: 10px; text-shadow: none; color: #bcbcbc; }
   .result-rank { margin: 6px 0 0; text-align: center; font-size: 1.15rem; color: var(--yellow); }
   .result-rank::before { content: "しょうごう："; color: #bcbcbc; font-size: .85rem; }
-  .result-extra { margin: 6px 0 0; text-align: center; font-size: .95rem; }
   .result-line { margin: 12px 0 16px; padding: 10px; border: 2px solid var(--white); font-size: 1rem; line-height: 1.6; }
   .result-line::before { content: "▼ "; color: var(--yellow); }
+  /* レアコメント（25回に1回）は金色の枠 */
+  .result-line.rare { border-color: var(--yellow); color: var(--yellow); box-shadow: 0 0 0 2px #a07800; }
+  .result-line.rare::before { display: block; margin-bottom: 4px; content: "★ RARE ★"; font-family: var(--font-pixel); font-size: 10px; }
   .record { display: block; margin: 8px auto 0; width: fit-content; font-family: var(--font-pixel); font-size: 11px; color: var(--yellow); animation: blink .5s steps(2, start) infinite; }
   .record[hidden] { display: none; }
   .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -86,9 +88,9 @@
   .menu-actions button { padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
     font-family: var(--font-dot); font-size: 1rem; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
   .menu-actions button:active, .titles-actions button:active { transform: translate(4px, 4px); box-shadow: none; }
-  .actions .zukan { color: var(--yellow); }
+  .actions .zukan { color: var(--yellow); font-size: .9rem; white-space: nowrap; letter-spacing: -.02em; }
 
-  /* しょうごう ずかん */
+  /* 獲得したしょうごう */
   #titles .window { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
   .titles-count { margin: -6px 0 10px; text-align: center; font-family: var(--font-pixel); font-size: 11px; color: var(--white); }
   .titles-list { flex: 1; min-height: 0; margin: 0 0 14px; padding: 0; list-style: none; overflow-y: auto; border-top: 2px solid #333; }
@@ -122,7 +124,7 @@
 <div id="title" class="overlay">
   <h1 class="logo"><small>へんなもの</small>変なもの<br>リフティング</h1>
   <p class="press">TAP TO START</p>
-  <button id="open-titles" class="title-btn">しょうごう ずかん</button>
+  <button id="open-titles" class="title-btn">獲得したしょうごう</button>
   <p class="hiscore">HI-SCORE <span id="hiscore">00000</span></p>
   <p class="copyright">© 2026 HENNA LIFTING</p>
 </div>
@@ -137,7 +139,7 @@
 
 <div id="titles" class="overlay" hidden>
   <div class="window">
-    <h2 class="heading jp">しょうごう ずかん</h2>
+    <h2 class="heading jp">獲得したしょうごう</h2>
     <p id="titles-count" class="titles-count"></p>
     <ul id="titles-list" class="titles-list"></ul>
     <div class="titles-actions"><button id="close-titles">もどる</button></div>
@@ -152,14 +154,13 @@
     <p id="result-score" class="result-score"></p>
     <p id="result-rank" class="result-rank"></p>
     <div id="result-new" class="result-new" hidden></div>
-    <p id="result-extra" class="result-extra"></p>
     <p id="result-line" class="result-line"></p>
     <div class="actions">
       <button id="retry" class="primary">もういちど</button>
       <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに とうこう</a>
       <a id="line" class="line" href="https://line.me/R/share" target="_blank" rel="noopener">LINEで じまん</a>
       <button id="change">ステージ せんたく</button>
-      <button id="result-titles" class="zukan">しょうごう ずかん</button>
+      <button id="result-titles" class="zukan">獲得したしょうごう</button>
     </div>
   </div>
 </div>

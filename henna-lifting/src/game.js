@@ -1,4 +1,4 @@
-import { OBJECTS, getObject, levelOf, levelValue } from './objects.js';
+import { OBJECTS, getObject, levelOf, levelValue, pickComment } from './objects.js';
 import { WORLD, createBody, riceGrains, step, tryKick, windForce } from './physics.js';
 import { TITLES, addRun, newTitles, rankTitle } from './titles.js';
 import { createMusic, tempoScale } from './music.js';
@@ -290,8 +290,9 @@ function endGame() {
   $('result-score').textContent = String(score).padStart(3, '0');
   $('result-rank').textContent = rankTitle(def.id, score);
   showNewTitles(got);
-  $('result-extra').textContent = extraLine(def, body);
-  $('result-line').textContent = body.state === 'broken' ? def.breakLine : def.groundLine;
+  const comment = pickComment(def, score);
+  $('result-line').textContent = comment.text;
+  $('result-line').classList.toggle('rare', comment.rare);
   $('result-record').hidden = !isRecord || score === 0;
   updateShareLink();
   $('result').hidden = false;
@@ -335,7 +336,7 @@ function showNewTitles(ids) {
   box.appendChild(head);
   // 一度にたくさん取れたときは、結果画面が長くなりすぎないよう3つまで見せる
   const lines = ids.slice(0, 3).map((id) => `★ ${TITLES.find((t) => t.id === id).name}`);
-  if (ids.length > 3) lines.push(`ほか ${ids.length - 3}こ（ずかんで みてね）`);
+  if (ids.length > 3) lines.push(`ほか ${ids.length - 3}こ`);
   for (const line of lines) {
     const item = document.createElement('span');
     item.className = 'new-item';
@@ -344,7 +345,7 @@ function showNewTitles(ids) {
   }
 }
 
-// しょうごう ずかん（取ったものは名前、まだのものは ？？？ とヒント）
+// 獲得したしょうごう（取ったものは名前、まだのものは ？？？ とヒント）
 // from: 'title'（タイトル画面から）か 'result'（結果画面から）。もどるで元の画面に帰る
 let titlesFrom = 'title';
 function showTitles(from) {
@@ -386,17 +387,9 @@ $('close-titles').addEventListener('click', () => {
   else showTitle();
 });
 
-function extraLine(def, body) {
-  if (def.id === 'onigiri') return `米粒の残り ${riceGrains(body, def)}粒`;
-  if (def.id === 'egg') return `ヒビ ${body.cracks}本`;
-  if (def.id === 'phone') return `画面のヒビ ${body.cracks}本`;
-  return state.best[def.id] ? `自己ベスト ${state.best[def.id]}回` : '';
-}
-
 function shareText() {
   const { def, body } = state;
-  const extra = extraLine(def, body);
-  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def.id, body.kicks)}」${extra ? `（${extra}）` : ''} #変なものリフティング`;
+  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def.id, body.kicks)}」 #変なものリフティング`;
 }
 
 // X の投稿画面と LINE の送信画面へのリンク（スマホの共有メニューが使えない環境でも動くように、普通のリンクにしている）

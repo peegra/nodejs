@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_LEVEL, OBJECTS, getObject, levelOf, levelValue } from '../src/objects.js';
+import { MAX_LEVEL, OBJECTS, RARE_CHANCE, commentTier, getObject, levelOf, levelValue, pickComment } from '../src/objects.js';
 import { WORLD, createBody, riceGrains, step, tryKick, windForce } from '../src/physics.js';
 
 const ball = getObject('ball');
@@ -204,4 +204,27 @@ test('どのモノも、真ん中を蹴れば地面より上まで上がる（�
     }
     assert.ok(createBody(def).y - top > 80, `${def.id} の上がり幅が小さすぎる`);
   }
+});
+
+test('結果のコメントは どのステージも 4段階 × 4つ', () => {
+  for (const def of OBJECTS) {
+    assert.equal(def.comments.length, 4, def.id);
+    for (const tier of def.comments) assert.equal(tier.length, 4, def.id);
+  }
+});
+
+test('コメントの段階は Lv1 / Lv2・3 / Lv4・5 / Lv6', () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map(commentTier), [0, 1, 1, 2, 2, 3]);
+});
+
+test('コメントは回数のレベルで選ばれ、4つ目のレアは 25回に1回', () => {
+  const egg = getObject('egg');
+  const normal = pickComment(egg, 0, () => 0.5);
+  assert.equal(normal.rare, false);
+  assert.ok(egg.comments[0].slice(0, 3).includes(normal.text));
+  const rare = pickComment(egg, 55, () => 0);
+  assert.equal(rare.rare, true);
+  assert.equal(rare.text, egg.comments[3][3]);
+  assert.ok(egg.comments[2].slice(0, 3).includes(pickComment(egg, 30, () => 0.99).text));
+  assert.equal(RARE_CHANCE, 1 / 25);
 });
