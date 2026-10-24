@@ -334,7 +334,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!result) return;
   if (levelOf(body.kicks) > levelBefore) levelUp(levelOf(body.kicks));
   const seeds = levelValue(def, 'seedsPerKick', levelBefore);
-  if (seeds) spitSeeds(seeds, levelValue(def, 'seedSlide', levelBefore));
+  if (seeds) spitSeeds(seeds, levelValue(def, 'seedSlide', levelBefore, 0));
 
   state.feet.push({ x: p.x, y: p.y + body.r * 0.6, life: 0.18, flip: result.offset > 0 });
   KICK_SFX[def.id]?.();
@@ -366,7 +366,8 @@ function levelUp(level) {
 // すいかの種: すいかの位置からこちらに向かって飛んできて、画面に張り付く
 const SEED_FLY = 0.22; // 飛んでくるのにかかる秒数
 function spitSeeds(count, slide) {
-  const { body } = state;
+  const { def, body } = state;
+  const sizes = def.seedSizes ?? [1];
   for (let i = 0; i < count; i++) {
     state.seeds.push({
       sx: body.x + (Math.random() - 0.5) * body.r,
@@ -379,6 +380,7 @@ function spitSeeds(count, slide) {
       landed: false,
       splat: 0,
       slide: slide * (0.8 + Math.random() * 0.4),
+      size: sizes[Math.floor(Math.random() * sizes.length)],
     });
   }
 }
@@ -418,14 +420,14 @@ function updateSeeds(dt) {
       continue;
     }
     seed.splat = Math.max(0, seed.splat - dt);
-    if (seed.landed) continue;
+    if (seed.landed || !seed.slide) continue; // 垂れる設定がなければ張り付いたまま
     // 剥がれずにゆっくり垂れていき、画面の下（すでに溜まった種の上）で止まる
     const bin = Math.min(state.pile.length - 1, Math.max(0, Math.floor(seed.x / 20)));
-    const stopAt = floor - state.pile[bin] - SEED_H / 2;
+    const stopAt = floor - state.pile[bin] - (SEED_H * seed.size) / 2;
     seed.y = Math.min(stopAt, seed.y + seed.slide * dt);
     if (seed.y >= stopAt) {
       seed.landed = true;
-      state.pile[bin] += SEED_H * 0.45;
+      state.pile[bin] += SEED_H * seed.size * 0.45;
     }
   }
 }
@@ -725,9 +727,9 @@ function drawSeeds() {
       const p = 1 - (1 - seed.t / SEED_FLY) ** 2;
       const x = seed.sx + (seed.x - seed.sx) * p;
       const y = seed.sy + (seed.y - seed.sy) * p;
-      drawSeed(x, y, 0.2 + 0.8 * p, seed.angle + (1 - p) * 4, 0);
+      drawSeed(x, y, (0.2 + 0.8 * p) * seed.size, seed.angle + (1 - p) * 4, 0);
     } else {
-      drawSeed(seed.x, seed.y, 1, seed.angle, seed.splat > 0 ? 0.25 : 0);
+      drawSeed(seed.x, seed.y, seed.size, seed.angle, seed.splat > 0 ? 0.25 : 0);
     }
   }
 }
