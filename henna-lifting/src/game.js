@@ -631,16 +631,6 @@ function drawEffects() {
     ctx.restore();
   }
 
-  ctx.textAlign = 'center';
-  for (const p of state.popups) {
-    ctx.globalAlpha = Math.min(1, p.life * 2);
-    ctx.font = `${p.size}px ${PIXEL_FONT}`;
-    ctx.fillStyle = '#000';
-    ctx.fillText(p.text, p.x + p.size / 8, p.y + p.size / 8);
-    ctx.fillStyle = p.color;
-    ctx.fillText(p.text, p.x, p.y);
-  }
-  ctx.globalAlpha = 1;
 }
 
 function pixelText(text, x, y, font, color, shadow = '#000') {
@@ -734,6 +724,20 @@ function drawSeeds() {
   }
 }
 
+// LEVEL UP! や PERFECT! などの文字。すいかの種より手前に描く
+function drawPopups() {
+  ctx.textAlign = 'center';
+  for (const p of state.popups) {
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.font = `${p.size}px ${PIXEL_FONT}`;
+    ctx.fillStyle = '#000';
+    ctx.fillText(p.text, p.x + p.size / 8, p.y + p.size / 8);
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawStreaks() {
   for (const st of state.streaks) {
     if (st.leaf) {
@@ -789,6 +793,7 @@ function render() {
     drawObject();
     drawEffects();
     drawSeeds();
+    drawPopups();
     if (state.screen === 'play' || state.screen === 'over') drawHud();
     drawCall();
   }
