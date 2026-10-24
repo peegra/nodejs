@@ -345,12 +345,18 @@ function showNewTitles(ids) {
 }
 
 // しょうごう ずかん（取ったものは名前、まだのものは ？？？ とヒント）
-function showTitles() {
+// from: 'title'（タイトル画面から）か 'result'（結果画面から）。もどるで元の画面に帰る
+let titlesFrom = 'title';
+function showTitles(from) {
   ensureAudio();
   tone(880, 0.06);
-  music.play('title');
-  state.screen = 'titles';
+  titlesFrom = from;
+  if (from === 'title') {
+    music.play('title');
+    state.screen = 'titles';
+  }
   $('title').hidden = true;
+  $('result').hidden = true;
   $('titles').hidden = false;
   const owned = new Set(state.titles);
   $('titles-count').textContent = `${String(owned.size).padStart(3, '0')} / ${TITLES.length}`;
@@ -370,12 +376,14 @@ function showTitles() {
 
 $('open-titles').addEventListener('click', (e) => {
   e.stopPropagation(); // タイトル画面のタップ（ステージ選択へ）にしない
-  showTitles();
+  showTitles('title');
 });
+$('result-titles').addEventListener('click', () => showTitles('result'));
 $('close-titles').addEventListener('click', () => {
   tone(660, 0.06);
   $('titles').hidden = true;
-  showTitle();
+  if (titlesFrom === 'result') $('result').hidden = false;
+  else showTitle();
 });
 
 function extraLine(def, body) {
@@ -401,6 +409,10 @@ function updateShareLink() {
 
 $('retry').addEventListener('click', () => startGame(state.def.id));
 $('change').addEventListener('click', showMenu);
+$('back-title').addEventListener('click', () => {
+  tone(660, 0.06);
+  showTitle();
+});
 $('mute').addEventListener('click', () => {
   state.muted = !state.muted;
   store.set('muted', state.muted);

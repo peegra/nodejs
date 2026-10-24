@@ -82,7 +82,11 @@
   .actions > *:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
   .actions .primary { grid-column: 1 / -1; background: var(--red); }
   .actions .line { background: var(--line-green); }
-  .actions .secondary { grid-column: 1 / -1; }
+  .menu-actions { display: grid; margin-top: 14px; }
+  .menu-actions button { padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
+    font-family: var(--font-dot); font-size: 1rem; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
+  .menu-actions button:active, .titles-actions button:active { transform: translate(4px, 4px); box-shadow: none; }
+  .actions .zukan { color: var(--yellow); }
 
   /* しょうごう ずかん */
   #titles .window { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
@@ -127,6 +131,7 @@
   <div class="window">
     <h2 class="heading">STAGE SELECT</h2>
     <div id="object-list"></div>
+    <div class="menu-actions"><button id="back-title">タイトルに もどる</button></div>
   </div>
 </div>
 
@@ -153,7 +158,8 @@
       <button id="retry" class="primary">もういちど</button>
       <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに とうこう</a>
       <a id="line" class="line" href="https://line.me/R/share" target="_blank" rel="noopener">LINEで じまん</a>
-      <button id="change" class="secondary">ステージ せんたく</button>
+      <button id="change">ステージ せんたく</button>
+      <button id="result-titles" class="zukan">しょうごう ずかん</button>
     </div>
   </div>
 </div>
