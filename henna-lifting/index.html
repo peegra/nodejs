@@ -15,7 +15,7 @@
   /* 8ビット機のゲーム画面: 黒地に白枠のウインドウ、限られた色数、ドットフォント */
   :root {
     --black: #000000; --white: #fcfcfc; --sky: #5c94fc; --grass: #00a800;
-    --red: #e40058; --yellow: #fcd800; --gray: #7c7c7c;
+    --red: #e40058; --yellow: #fcd800; --gray: #7c7c7c; --line-green: #06c755;
     --font-dot: "DotGothic16", "Hiragino Sans", monospace;
     --font-pixel: "Press Start 2P", "Courier New", monospace;
     color-scheme: dark;
@@ -76,6 +76,7 @@
   .actions > *:active { transform: translate(4px, 4px); box-shadow: none; }
   .actions > *:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
   .actions .primary { grid-column: 1 / -1; background: var(--red); }
+  .actions .line { background: var(--line-green); }
   .actions .secondary { grid-column: 1 / -1; }
 
   #mute { position: fixed; z-index: 30; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
@@ -116,7 +117,7 @@
     <div class="actions">
       <button id="retry" class="primary">もういちど</button>
       <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに とうこう</a>
-      <button id="copy" class="copy">けっかを コピー</button>
+      <a id="line" class="line" href="https://line.me/R/share" target="_blank" rel="noopener">LINEで じまん</a>
       <button id="change" class="secondary">ステージ せんたく</button>
     </div>
   </div>

@@ -44,7 +44,7 @@ const state = {
   pile: [], // 画面の下に溜まった種の高さ（横 20px ごと）
   streaks: [], // 風の筋と葉っぱ
   flyers: [], // タイトル画面を横切るモノ
-  nextFlyerAt: 0.6,
+  nextFlyerAt: 0.2,
   streakAcc: 0,
   cloudShift: 0,
   call: null, // スマホの着信画面
@@ -298,26 +298,16 @@ function shareText() {
   return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def, body.kicks)}」${extra ? `（${extra}）` : ''} #変なものリフティング`;
 }
 
-// X の投稿画面へのリンク（スマホの共有メニューが使えない環境でも動くように、普通のリンクにしている）
+// X の投稿画面と LINE の送信画面へのリンク（スマホの共有メニューが使えない環境でも動くように、普通のリンクにしている）
 function updateShareLink() {
   const url = location.href.split('#')[0];
-  $('share').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}&url=${encodeURIComponent(url)}`;
-}
-
-async function copyResult() {
-  const text = `${shareText()} ${location.href.split('#')[0]}`;
-  try {
-    await navigator.clipboard.writeText(text);
-    $('copy').textContent = 'コピー できた！';
-  } catch {
-    $('copy').textContent = 'コピー できなかった';
-  }
-  setTimeout(() => ($('copy').textContent = 'けっかを コピー'), 1600);
+  const text = shareText();
+  $('share').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  $('line').href = `https://line.me/R/share?text=${encodeURIComponent(`${text}\n${url}`)}`;
 }
 
 $('retry').addEventListener('click', () => startGame(state.def.id));
 $('change').addEventListener('click', showMenu);
-$('copy').addEventListener('click', copyResult);
 $('mute').addEventListener('click', () => {
   state.muted = !state.muted;
   store.set('muted', state.muted);
@@ -442,19 +432,9 @@ function updateFlyers(dt) {
   }
   state.nextFlyerAt -= dt;
   if (state.nextFlyerAt <= 0) {
-    const def = OBJECTS[Math.floor(Math.random() * OBJECTS.length)];
-    const fromLeft = Math.random() < 0.5;
-    state.flyers.push({
-      emoji: def.emoji,
-      x: fromLeft ? -60 : WORLD.width + 60,
-      y: 320 + Math.random() * 280,
-      vx: (fromLeft ? 1 : -1) * (150 + Math.random() * 170),
-      vy: -(380 + Math.random() * 320),
-      angle: 0,
-      spin: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 6),
-      size: 50 + Math.random() * 40,
-    });
-    state.nextFlyerAt = 0.9 + Math.random() * 1.8;
+    const count = Math.random() < 0.35 ? 2 + Math.floor(Math.random() * 3) : 1;
+    for (let i = 0; i < count; i++) spawnFlyer();
+    state.nextFlyerAt = 0.35 + Math.random() * 0.8;
   }
   for (const f of state.flyers) {
     f.vy += 520 * dt;
@@ -467,6 +447,21 @@ function updateFlyers(dt) {
     }
   }
   state.flyers = state.flyers.filter((f) => f.x > -120 && f.x < WORLD.width + 120);
+}
+
+function spawnFlyer() {
+  const def = OBJECTS[Math.floor(Math.random() * OBJECTS.length)];
+  const fromLeft = Math.random() < 0.5;
+  state.flyers.push({
+    emoji: def.emoji,
+    x: fromLeft ? -60 - Math.random() * 60 : WORLD.width + 60 + Math.random() * 60,
+    y: 300 + Math.random() * 300,
+    vx: (fromLeft ? 1 : -1) * (150 + Math.random() * 200),
+    vy: -(350 + Math.random() * 380),
+    angle: 0,
+    spin: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 6),
+    size: 44 + Math.random() * 46,
+  });
 }
 
 function drawFlyers() {
