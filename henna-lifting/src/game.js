@@ -1,5 +1,6 @@
 import { OBJECTS, getObject, levelOf, levelValue } from './objects.js';
 import { WORLD, createBody, remainingPct, step, tryKick, windForce } from './physics.js';
+import { createMusic, tempoScale } from './music.js';
 
 const canvas = document.getElementById('stage');
 const screen = canvas.getContext('2d');
@@ -73,6 +74,8 @@ function ensureAudio() {
   // iPhone は電話やアプリ切り替えのあと 'interrupted' になって止まる
   if (audio && audio.state !== 'running') audio.resume().catch(() => {});
 }
+const music = createMusic(() => audio);
+music.setMuted(state.muted);
 function tone(freq, dur = 0.08, type = 'square', gain = 0.1, slideTo) {
   if (state.muted || !audio) return;
   const t = audio.currentTime;
@@ -216,6 +219,7 @@ function showTitle() {
 function showMenu() {
   ensureAudio();
   tone(880, 0.06);
+  music.play('title');
   state.screen = 'menu';
   $('title').hidden = true;
   $('result').hidden = true;
@@ -253,6 +257,8 @@ function startGame(id) {
   state.overTimer = 0;
   state.shake = 0;
   state.screen = 'play';
+  music.setRate(tempoScale(1));
+  music.play('play');
   stopWindSound();
   if (state.def.levels?.wind) startWindSound();
   $('title').hidden = true;
@@ -263,6 +269,8 @@ function startGame(id) {
 function endGame() {
   state.screen = 'over';
   stopWindSound();
+  music.stop();
+  [523, 440, 349, 262].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.2), 150 + i * 160));
   const { def, body } = state;
   const score = body.kicks;
   const isRecord = score > (state.best[def.id] ?? 0);
@@ -317,6 +325,7 @@ $('mute').addEventListener('click', () => {
   state.muted = !state.muted;
   store.set('muted', state.muted);
   $('mute').textContent = state.muted ? '🔇' : '🔊';
+  music.setMuted(state.muted);
 });
 $('mute').textContent = state.muted ? '🔇' : '🔊';
 
@@ -358,6 +367,7 @@ function levelUp(level) {
   addPopup('LEVEL UP!', WORLD.width / 2, 330, '#fcd800', 32, 1.4);
   addPopup(`Lv${level}`, WORLD.width / 2, 370, '#fcfcfc', 24, 1.4);
   [660, 880, 1320].forEach((f, i) => setTimeout(() => tone(f, 0.09), i * 90));
+  music.setRate(tempoScale(level));
 }
 
 // すいかの種: すいかの位置からこちらに向かって飛んできて、画面に張り付く
@@ -889,4 +899,4 @@ showTitle();
 requestAnimationFrame(frame);
 
 // 動作確認用（自動テストからゲームの状態を見られるようにする）
-window.__hennaLifting = { state, startGame, toWorld };
+window.__hennaLifting = { state, startGame, toWorld, music };

@@ -8,7 +8,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f) => readFileSync(path.join(ROOT, f), 'utf8');
 
 const strip = (src) => src.replace(/^import .*;$/gm, '').replace(/^export /gm, '');
-const script = ['src/objects.js', 'src/physics.js', 'src/game.js'].map((f) => `// ---- ${f} ----\n${strip(read(f))}`).join('\n');
+const script = ['src/objects.js', 'src/physics.js', 'src/music.js', 'src/game.js'].map((f) => `// ---- ${f} ----\n${strip(read(f))}`).join('\n');
 
 let html = read('index.html')
   .replace(/<!doctype html>\s*/i, '')
