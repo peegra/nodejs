@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>変なものリフティング</title>
+<meta name="description" content="おにぎり、生卵、すいか、スマホ…変なものを蹴り上げ続けるリフティングゲーム。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍙</text></svg>">
+<meta property="og:title" content="変なものリフティング">
+<meta property="og:description" content="おにぎり、生卵、すいか、スマホ…何回蹴り上げられる？">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
+<style>
+  /* 8ビット機のゲーム画面: 黒地に白枠のウインドウ、限られた色数、ドットフォント */
+  :root {
+    --black: #000000; --white: #fcfcfc; --sky: #5c94fc; --grass: #00a800;
+    --red: #e40058; --yellow: #fcd800; --gray: #7c7c7c; --line-green: #06c755;
+    --font-dot: "DotGothic16", "Hiragino Sans", monospace;
+    --font-pixel: "Press Start 2P", "Courier New", monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--black); font-family: var(--font-dot); color: var(--white); }
+  canvas { display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
+  /* ブラウン管の走査線 */
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 20;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px); }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: rgba(0,0,0,0.35); }
+  .overlay[hidden] { display: none; }
+  .window { width: min(420px, 100%); max-height: 100%; overflow-y: auto; padding: 18px 14px;
+    background: var(--black); border: 4px solid var(--white); box-shadow: 0 0 0 4px var(--black), 8px 8px 0 4px rgba(0,0,0,0.5); }
+
+  /* タイトル画面 */
+  #title { flex-direction: column; gap: 28px; background: rgba(0,0,0,0.25); cursor: pointer; text-align: center; }
+  .logo { margin: 0; font-family: var(--font-dot); font-weight: 400; font-size: clamp(2.4rem, 13vw, 3.6rem); line-height: 1.05;
+    color: var(--yellow); text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--black); letter-spacing: .04em; }
+  .logo small { display: block; font-size: .42em; color: var(--white); text-shadow: 3px 3px 0 var(--black); letter-spacing: .3em; }
+  /* タイトルのメニュー（昔のゲームのように ▶ カーソルで選ぶ。何も触っていないときは上の項目にカーソル） */
+  .title-menu { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .title-item { position: relative; padding: 4px 4px 4px 30px; border: none; background: none; color: var(--white);
+    font-family: var(--font-dot); font-size: 1.35rem; text-shadow: 3px 3px 0 var(--black); cursor: pointer; }
+  .title-item::before { content: "▶"; position: absolute; left: 4px; color: var(--yellow); visibility: hidden; }
+  .title-item:hover::before, .title-item:focus-visible::before,
+  .title-menu:not(:hover):not(:focus-within) .title-item:first-child::before { visibility: visible; animation: blink 1s steps(2, start) infinite; }
+  .title-item:focus-visible { outline: none; color: var(--yellow); }
+  .hiscore { margin: 0; font-family: var(--font-pixel); font-size: 11px; color: var(--white); text-shadow: 2px 2px 0 var(--black); }
+  .copyright { margin: 0; font-family: var(--font-pixel); font-size: 8px; color: var(--white); opacity: .8; }
+
+  /* ステージ選択 */
+  .heading { margin: 0 0 14px; font-family: var(--font-pixel); font-weight: 400; font-size: 14px; text-align: center; color: var(--yellow); }
+  .heading.jp { font-family: var(--font-dot); font-size: 1.2rem; }
+  .object-btn { position: relative; display: grid; grid-template-columns: 40px 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+    width: 100%; padding: 8px 6px 8px 22px; border: none; background: transparent; color: var(--white); text-align: left; font: inherit; cursor: pointer; }
+  .object-btn + .object-btn { border-top: 2px dashed #333; }
+  .object-btn::before { content: "▶"; position: absolute; left: 2px; top: 50%; transform: translateY(-50%); color: var(--yellow); visibility: hidden; }
+  .object-btn:hover::before, .object-btn:focus-visible::before { visibility: visible; animation: blink .6s steps(2, start) infinite; }
+  .object-btn:focus-visible { outline: none; background: #111; }
+  .stage-no { grid-column: 1 / -1; font-family: var(--font-pixel); font-size: 8px; color: var(--gray); margin-bottom: 2px; }
+  .object-icon { font-size: 1.9rem; text-align: center; image-rendering: pixelated; }
+  .object-text { display: flex; flex-direction: column; min-width: 0; }
+  .object-text strong { font-weight: 400; font-size: 1.1rem; }
+  .object-text small { font-size: .78rem; color: #bcbcbc; }
+  .object-best { font-family: var(--font-pixel); font-size: 9px; color: var(--yellow); white-space: nowrap; }
+
+  /* リザルト */
+  .result-head { margin: 0; font-family: var(--font-pixel); font-size: 20px; text-align: center; color: var(--red); text-shadow: 3px 3px 0 #500020; }
+  .result-title { margin: 12px 0 0; text-align: center; font-size: 1rem; color: #bcbcbc; }
+  .result-score { margin: 10px 0 4px; text-align: center; font-family: var(--font-pixel); font-size: 44px; color: var(--white); text-shadow: 4px 4px 0 var(--gray); }
+  .result-score::after { content: " KICKS"; font-size: 10px; text-shadow: none; color: #bcbcbc; }
+  .result-rank { margin: 6px 0 0; text-align: center; font-size: 1.15rem; color: var(--yellow); }
+  .result-rank::before { content: "しょうごう："; color: #bcbcbc; font-size: .85rem; }
+  .result-line { margin: 12px 0 16px; padding: 10px; border: 2px solid var(--white); font-size: 1rem; line-height: 1.6; }
+  .result-line::before { content: "▼ "; color: var(--yellow); }
+  /* レアコメント（25回に1回）は金色の枠 */
+  .result-line.rare { border-color: var(--yellow); color: var(--yellow); box-shadow: 0 0 0 2px #a07800; }
+  .result-line.rare::before { display: block; margin-bottom: 4px; content: "★ RARE ★"; font-family: var(--font-pixel); font-size: 10px; }
+  .record { display: block; margin: 8px auto 0; width: fit-content; font-family: var(--font-pixel); font-size: 11px; color: var(--yellow); animation: blink .5s steps(2, start) infinite; }
+  .record[hidden] { display: none; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .actions > * { display: block; padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
+    font-family: var(--font-dot); font-size: 1rem; text-align: center; text-decoration: none; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
+  .actions > *:active { transform: translate(4px, 4px); box-shadow: none; }
+  .actions > *:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+  .actions .primary { grid-column: 1 / -1; background: var(--red); }
+  .actions .line { background: var(--line-green); }
+  .menu-actions { display: grid; margin-top: 14px; }
+  .menu-actions button { padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
+    font-family: var(--font-dot); font-size: 1rem; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
+  .menu-actions button:active, .titles-actions button:active { transform: translate(4px, 4px); box-shadow: none; }
+  .actions .zukan { color: var(--yellow); font-size: .9rem; white-space: nowrap; letter-spacing: -.02em; }
+
+  /* 獲得したしょうごう */
+  #titles .window { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
+  .titles-count { margin: -6px 0 10px; text-align: center; font-family: var(--font-pixel); font-size: 11px; color: var(--white); }
+  .titles-list { flex: 1; min-height: 0; margin: 0 0 14px; padding: 0; list-style: none; overflow-y: auto; border-top: 2px solid #333; }
+  .titles-list li { display: grid; grid-template-columns: 34px 1fr; column-gap: 6px; padding: 7px 2px; border-bottom: 2px dashed #333; }
+  .t-no { grid-row: span 2; font-family: var(--font-pixel); font-size: 8px; color: var(--gray); padding-top: 4px; }
+  .t-name { font-size: 1rem; }
+  .t-hint { font-size: .75rem; color: #bcbcbc; }
+  .got .t-name { color: var(--yellow); }
+  .got .t-name::before { content: "★ "; }
+  .locked .t-name { color: var(--gray); }
+  .titles-actions { display: grid; }
+  .titles-actions button { padding: 12px 6px; border: 3px solid var(--white); background: var(--black); color: var(--white);
+    font-family: var(--font-dot); font-size: 1rem; cursor: pointer; box-shadow: 4px 4px 0 var(--gray); }
+  .result-new { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 10px 0 0; padding: 8px; border: 2px dashed var(--yellow); }
+  .result-new[hidden] { display: none; }
+  .new-head { font-family: var(--font-pixel); font-size: 10px; color: var(--yellow); animation: blink .5s steps(2, start) infinite; margin-bottom: 4px; }
+  .new-item { font-size: .95rem; color: var(--white); }
+
+  #mute { position: fixed; z-index: 30; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
+    width: 40px; height: 40px; border: 3px solid var(--white); background: var(--black); font-size: 1.1rem; cursor: pointer; }
+  #mute:focus-visible { outline: 3px solid var(--yellow); }
+
+  @keyframes blink { to { visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) { .title-item::before, .record, .new-head, .object-btn::before { animation: none !important; } }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<button id="mute" aria-label="音のオンオフ">🔊</button>
+
+<div id="title" class="overlay">
+  <h1 class="logo"><small>へんなもの</small>変なもの<br>リフティング</h1>
+  <nav class="title-menu">
+    <button id="start-game" class="title-item">スタート</button>
+    <button id="open-titles" class="title-item">しょうごう</button>
+  </nav>
+  <p class="hiscore">HI-SCORE <span id="hiscore">00000</span></p>
+  <p class="copyright">© 2026 HENNA LIFTING</p>
+</div>
+
+<div id="menu" class="overlay" hidden>
+  <div class="window">
+    <h2 class="heading">STAGE SELECT</h2>
+    <div id="object-list"></div>
+    <div class="menu-actions"><button id="back-title">タイトルに もどる</button></div>
+  </div>
+</div>
+
+<div id="titles" class="overlay" hidden>
+  <div class="window">
+    <h2 class="heading jp">獲得したしょうごう</h2>
+    <p id="titles-count" class="titles-count"></p>
+    <ul id="titles-list" class="titles-list"></ul>
+    <div class="titles-actions"><button id="close-titles">もどる</button></div>
+  </div>
+</div>
+
+<div id="result" class="overlay" hidden>
+  <div class="window">
+    <p id="result-head" class="result-head">GAME OVER</p>
+    <span id="result-record" class="record" hidden>NEW RECORD!</span>
+    <p id="result-title" class="result-title"></p>
+    <p id="result-score" class="result-score"></p>
+    <p id="result-rank" class="result-rank"></p>
+    <div id="result-new" class="result-new" hidden></div>
+    <p id="result-line" class="result-line"></p>
+    <div class="actions">
+      <button id="retry" class="primary">もういちど</button>
+      <a id="share" class="share" href="https://twitter.com/intent/tweet" target="_blank" rel="noopener">Xに とうこう</a>
+      <a id="line" class="line" href="https://line.me/R/share" target="_blank" rel="noopener">LINEで じまん</a>
+      <button id="change">ステージ せんたく</button>
+      <button id="result-titles" class="zukan">獲得したしょうごう</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/game.js"></script>
+</body>
+</html>
