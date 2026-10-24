@@ -1,9 +1,38 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OBJECTS, getObject } from '../src/objects.js';
-import { WORLD, createBody, remainingPct, step, tryKick } from '../src/physics.js';
+import { MAX_LEVEL, OBJECTS, getObject, levelOf, levelValue } from '../src/objects.js';
+import { WORLD, createBody, remainingPct, step, tryKick, windForce } from '../src/physics.js';
 
 const ball = getObject('ball');
+
+// 中心を蹴った状態で n 回ぶん蹴ったことにする
+function kicked(def, n) {
+  const b = createBody(def);
+  b.kicks = n;
+  b.state = 'flying';
+  return b;
+}
+
+test('ステージはボール・おにぎり・生卵・すいか・スマホの5つ', () => {
+  assert.deepEqual(OBJECTS.map((o) => o.id), ['ball', 'onigiri', 'egg', 'watermelon', 'phone']);
+});
+
+test('レベルは10回ごとに上がり、Lv6で止まる', () => {
+  assert.equal(levelOf(0), 1);
+  assert.equal(levelOf(9), 1);
+  assert.equal(levelOf(10), 2);
+  assert.equal(levelOf(49), 5);
+  assert.equal(levelOf(50), MAX_LEVEL);
+  assert.equal(levelOf(500), MAX_LEVEL);
+});
+
+test('レベルごとの設定はどのモノも Lv1〜Lv6 の6段階ぶんある', () => {
+  for (const def of OBJECTS) {
+    for (const [key, values] of Object.entries(def.levels ?? {})) {
+      assert.equal(values.length, MAX_LEVEL, `${def.id}.${key}`);
+    }
+  }
+});
 
 test('最初のタップまでは落ちてこない', () => {
   const b = createBody(ball);
@@ -56,43 +85,80 @@ test('蹴らなければ地面に落ちて終わる', () => {
 test('壁に当たると跳ね返る', () => {
   const b = createBody(ball, { x: 60 });
   tryKick(b, ball, b.x + b.r, b.y); // 右側を蹴って左の壁へ
-  for (let i = 0; i < 60; i++) step(b, ball, 1 / 120);
+  for (let i = 0; i < 60; i++) step(b, ball, 1 / 120, { windNoise: () => 0.5 });
   assert.ok(b.x - b.r >= 0);
   assert.ok(b.vx > 0);
 });
 
-test('生卵: 真ん中なら割れず、端を3回蹴ると割れる', () => {
+test('ボール: Lv1は無風、レベルが上がるほど横風が強くなる', () => {
+  const gust = () => 1; // 右向きに最大
+  assert.equal(windForce(kicked(ball, 5), ball, gust), 0);
+  const forces = [10, 20, 30, 40, 50].map((n) => windForce(kicked(ball, n), ball, gust));
+  forces.reduce((prev, f) => (assert.ok(f > prev), f), 0);
+
+  const b = kicked(ball, 30);
+  for (let i = 0; i < 60; i++) step(b, ball, 1 / 120, { windNoise: gust });
+  assert.ok(b.vx > 0, '右向きの風で右に流される');
+});
+
+test('風の設定がないモノは風を受けない', () => {
+  const onigiri = getObject('onigiri');
+  assert.equal(windForce(kicked(onigiri, 50), onigiri, () => 1), 0);
+});
+
+test('生卵: Lv1は判定が緩く、レベルが上がると同じずれでもヒビが入る', () => {
   const egg = getObject('egg');
-  const b = createBody(egg);
-  const kickAt = (dx) => {
-    b.cooldown = 0;
+  const at = (kicks, dx) => {
+    const b = kicked(egg, kicks);
     return tryKick(b, egg, b.x + b.r * dx, b.y);
   };
-  assert.equal(kickAt(0.1).cracked, false);
-  assert.equal(kickAt(0.8).cracked, true);
-  assert.equal(kickAt(-0.8).broke, false);
-  const last = kickAt(0.9);
-  assert.equal(last.broke, true);
+  assert.equal(at(0, 0.6).cracked, false, 'Lv1 では 0.6 ずれてもOK');
+  assert.equal(at(50, 0.6).cracked, true, 'Lv6 では 0.6 ずれるとヒビ');
+  assert.equal(at(50, 0.3).cracked, false, 'Lv6 でも真ん中ならOK');
+});
+
+test('生卵: ヒビ3本までは耐え、4本目で割れる', () => {
+  const egg = getObject('egg');
+  const b = createBody(egg);
+  const kickEdge = () => {
+    b.cooldown = 0;
+    return tryKick(b, egg, b.x + b.r * 0.9, b.y);
+  };
+  assert.equal(kickEdge().broke, false);
+  assert.equal(kickEdge().broke, false);
+  assert.equal(kickEdge().broke, false);
+  assert.equal(kickEdge().broke, true);
   assert.equal(b.state, 'broken');
   assert.equal(tryKick(b, egg, b.x, b.y), null);
 });
 
-test('おにぎり: 蹴るたびに小さくなり、最小サイズで止まる', () => {
+test('おにぎり: 蹴るたびに同じ割合で小さくなり、最小サイズで止まる', () => {
   const onigiri = getObject('onigiri');
   const b = createBody(onigiri);
+  tryKick(b, onigiri, b.x, b.y);
+  assert.equal(b.r, onigiri.radius * (1 - onigiri.shrinkPerKick));
   for (let i = 0; i < 200; i++) {
     b.cooldown = 0;
-    b.state = 'flying';
     tryKick(b, onigiri, b.x, b.y);
   }
   assert.equal(b.r, onigiri.minRadius);
   assert.equal(remainingPct(b), Math.round((onigiri.minRadius / onigiri.radius) * 100));
 });
 
-test('豆腐: 端を蹴ると一発で崩れる', () => {
-  const tofu = getObject('tofu');
-  const b = createBody(tofu);
-  assert.equal(tryKick(b, tofu, b.x + b.r * 0.9, b.y).broke, true);
+test('すいか: レベルが上がると、種の数と張り付く時間が増える', () => {
+  const wm = getObject('watermelon');
+  assert.equal(levelValue(wm, 'seedsPerKick', 1), 1);
+  assert.ok(levelValue(wm, 'seedsPerKick', 5) > levelValue(wm, 'seedsPerKick', 1));
+  assert.ok(levelValue(wm, 'seedSeconds', 6) > levelValue(wm, 'seedSeconds', 1));
+});
+
+test('スマホ: レベルが上がると、着信の間隔が短く、覆う範囲が広く濃くなる', () => {
+  const phone = getObject('phone');
+  for (let lv = 2; lv <= MAX_LEVEL; lv++) {
+    assert.ok(levelValue(phone, 'callEvery', lv) < levelValue(phone, 'callEvery', lv - 1));
+    assert.ok(levelValue(phone, 'callCover', lv) > levelValue(phone, 'callCover', lv - 1));
+    assert.ok(levelValue(phone, 'callOpacity', lv) > levelValue(phone, 'callOpacity', lv - 1));
+  }
 });
 
 test('スマホ: 蹴るたびにヒビが増えるが、それでは終わらない', () => {
@@ -104,14 +170,6 @@ test('スマホ: 蹴るたびにヒビが増えるが、それでは終わらな
   }
   assert.equal(b.cracks, 5);
   assert.equal(b.state, 'flying');
-});
-
-test('風船: 風で横に流される', () => {
-  const balloon = getObject('balloon');
-  const b = createBody(balloon);
-  tryKick(b, balloon, b.x, b.y);
-  for (let i = 0; i < 60; i++) step(b, balloon, 1 / 120, { windNoise: () => 1 });
-  assert.ok(b.vx > 0);
 });
 
 test('どのモノも、真ん中を蹴れば地面より上まで上がる（遊べる数値になっている）', () => {

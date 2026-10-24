@@ -1,4 +1,5 @@
 // 描画やブラウザに依存しない、物理と判定だけのモジュール（テストしやすくするため分けている）。
+import { levelOf, levelValue } from './objects.js';
 
 export const WORLD = { width: 400, height: 700, ground: 640 };
 
@@ -25,14 +26,20 @@ export function createBody(def, { x = WORLD.width / 2, y = WORLD.ground - 260 } 
   };
 }
 
-// dt 秒ぶん進める。windNoise は 0〜1 の値を返す関数（テストで差し替えられるように引数にしている）
+// 今の横風の力（プラスで右向き）。レベルが上がるほど強い。windNoise は 0〜1 の値を返す関数
+export function windForce(body, def, windNoise = defaultWind) {
+  const strength = levelValue(def, 'wind', levelOf(body.kicks));
+  return strength ? (windNoise(body.time) * 2 - 1) * strength : 0;
+}
+
+// dt 秒ぶん進める。windNoise はテストで差し替えられるように引数にしている
 export function step(body, def, dt, { windNoise = defaultWind } = {}) {
   if (body.state !== 'flying') return body;
   body.time += dt;
   body.cooldown = Math.max(0, body.cooldown - dt);
 
   body.vy += def.gravity * dt;
-  if (def.wind) body.vx += (windNoise(body.time) * 2 - 1) * def.wind * dt;
+  body.vx += windForce(body, def, windNoise) * dt;
   const damp = Math.max(0, 1 - def.drag * dt);
   body.vx *= damp;
   body.vy *= damp;
@@ -66,6 +73,7 @@ export function tryKick(body, def, tapX, tapY) {
   if (Math.hypot(dx, dy) > body.r * HIT_SLOP) return null;
 
   const offset = clamp(dx / body.r, -HIT_SLOP, HIT_SLOP);
+  const level = levelOf(body.kicks); // 蹴る前の回数でレベルを決める
   // 左側を蹴ると右へ、右側を蹴ると左へ飛ぶ
   body.vx = -offset * SIDE_SPEED;
   body.vy = -def.kickSpeed;
@@ -76,7 +84,8 @@ export function tryKick(body, def, tapX, tapY) {
 
   const result = { offset, perfect: Math.abs(offset) < 0.2, cracked: false, broke: false, shrank: false };
 
-  if (def.fragile && Math.abs(offset) > def.fragile.threshold) {
+  const threshold = def.fragile ? levelValue(def, 'crackThreshold', level, def.fragile.threshold) : 0;
+  if (def.fragile && Math.abs(offset) > threshold) {
     body.cracks += 1;
     result.cracked = true;
     if (body.cracks > def.fragile.maxCracks) {

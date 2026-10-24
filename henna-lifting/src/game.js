@@ -1,5 +1,5 @@
-import { OBJECTS, getObject } from './objects.js';
-import { WORLD, createBody, remainingPct, step, tryKick } from './physics.js';
+import { OBJECTS, getObject, levelOf, levelValue } from './objects.js';
+import { WORLD, createBody, remainingPct, step, tryKick, windForce } from './physics.js';
 
 const canvas = document.getElementById('stage');
 const screen = canvas.getContext('2d');
@@ -40,8 +40,9 @@ const state = {
   particles: [],
   popups: [],
   feet: [],
-  notice: null,
-  nextNoticeAt: 0,
+  seeds: [], // すいかの種（画面に張り付く）
+  call: null, // スマホの着信画面
+  nextCallAt: 0,
   overTimer: 0,
   shake: 0,
   best: store.get('best', {}),
@@ -87,7 +88,7 @@ function noise(dur = 0.2, gain = 0.3) {
   src.connect(g).connect(audio.destination);
   src.start();
 }
-const KICK_PITCH = { ball: 520, onigiri: 440, egg: 760, balloon: 980, watermelon: 170, phone: 620, tofu: 360 };
+const KICK_PITCH = { ball: 520, onigiri: 440, egg: 760, watermelon: 170, phone: 620 };
 
 // ---------- 画面サイズ ----------
 function resize() {
@@ -133,7 +134,7 @@ function showMenu() {
     const btn = document.createElement('button');
     btn.className = 'object-btn';
     btn.innerHTML = `<span class="stage-no">STAGE ${i + 1}</span>
-      <span class="object-icon">${def.emoji || '<span class="tofu-icon"></span>'}</span>
+      <span class="object-icon">${def.emoji}</span>
       <span class="object-text"><strong>${def.name}</strong><small>${def.intro}</small></span>
       <span class="object-best">HI ${String(state.best[def.id] ?? 0).padStart(3, '0')}</span>`;
     btn.addEventListener('click', () => startGame(def.id));
@@ -151,8 +152,9 @@ function startGame(id) {
   state.particles = [];
   state.popups = [];
   state.feet = [];
-  state.notice = null;
-  state.nextNoticeAt = 2.5;
+  state.seeds = [];
+  state.call = null;
+  state.nextCallAt = levelValue(state.def, 'callEvery', 1);
   state.overTimer = 0;
   state.shake = 0;
   state.screen = 'play';
@@ -192,7 +194,6 @@ export function rankTitle(def, score) {
 
 function extraLine(def, body) {
   if (def.id === 'onigiri') return `米粒の残り ${remainingPct(body)}%`;
-  if (def.id === 'tofu') return `豆腐の残り ${remainingPct(body)}%`;
   if (def.id === 'egg') return `ヒビ ${body.cracks}本`;
   if (def.id === 'phone') return `画面のヒビ ${body.cracks}本`;
   return state.best[def.id] ? `自己ベスト ${state.best[def.id]}回` : '';
@@ -237,8 +238,12 @@ canvas.addEventListener('pointerdown', (e) => {
   ensureAudio();
   const p = toWorld(e.clientX, e.clientY);
   const { def, body } = state;
+  const levelBefore = levelOf(body.kicks);
   const result = tryKick(body, def, p.x, p.y);
   if (!result) return;
+  if (levelOf(body.kicks) > levelBefore) levelUp(levelOf(body.kicks));
+  const seeds = levelValue(def, 'seedsPerKick', levelBefore);
+  if (seeds) spitSeeds(seeds, levelValue(def, 'seedSeconds', levelBefore));
 
   state.feet.push({ x: p.x, y: p.y + body.r * 0.6, life: 0.18, flip: result.offset > 0 });
   tone(KICK_PITCH[def.id] ?? 500, def.id === 'watermelon' ? 0.12 : 0.07);
@@ -257,8 +262,31 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 // ---------- 演出 ----------
-function addPopup(text, x, y, color) {
-  state.popups.push({ text, x, y, color, life: 0.7 });
+function addPopup(text, x, y, color, size = 16, life = 0.7) {
+  state.popups.push({ text, x, y, color, size, life });
+}
+
+function levelUp(level) {
+  addPopup('LEVEL UP!', WORLD.width / 2, 330, '#fcd800', 32, 1.4);
+  addPopup(`Lv${level}`, WORLD.width / 2, 370, '#fcfcfc', 24, 1.4);
+  [660, 880, 1320].forEach((f, i) => setTimeout(() => tone(f, 0.09), i * 90));
+}
+
+// すいかの種を画面のどこかに張り付ける
+function spitSeeds(count, seconds) {
+  for (let i = 0; i < count; i++) {
+    state.seeds.push({
+      x: 40 + Math.random() * (WORLD.width - 80),
+      y: 190 + Math.random() * 380,
+      angle: (Math.random() - 0.5) * 1.2,
+      life: seconds,
+    });
+  }
+  noise(0.05, 0.12);
+}
+
+function ringtone() {
+  [0, 160, 480, 640].forEach((t, i) => setTimeout(() => tone(i % 2 ? 988 : 1319, 0.12), t));
 }
 
 function burst(x, y, color, count, size) {
@@ -272,7 +300,7 @@ function burst(x, y, color, count, size) {
 function landingEffect() {
   const { def, body } = state;
   state.shake = def.id === 'watermelon' ? 0.35 : 0.15;
-  const colors = { egg: '#ffd43b', watermelon: '#e03131', phone: '#adb5bd', onigiri: '#ffffff', tofu: '#f8f4e3' };
+  const colors = { egg: '#ffd43b', watermelon: '#e03131', phone: '#adb5bd', onigiri: '#ffffff' };
   if (colors[def.id]) burst(body.x, WORLD.ground - 4, colors[def.id], def.id === 'watermelon' ? 30 : 16, 4);
   if (def.id === 'egg' || def.id === 'watermelon') noise(0.35, 0.35);
   else tone(330, 0.35, 'square', 0.1, 80);
@@ -290,16 +318,27 @@ function update(dt) {
       if (state.overTimer > 0.8) endGame();
     }
 
-    if (def.notifications && state.screen === 'play' && body.state === 'flying') {
-      state.nextNoticeAt -= dt;
-      if (state.nextNoticeAt <= 0) {
-        const msgs = def.notifications;
-        state.notice = { text: msgs[Math.floor(Math.random() * msgs.length)], life: 1.8 };
-        state.nextNoticeAt = 2.5 + Math.random() * 3;
-        tone(1320, 0.05);
-        setTimeout(() => tone(1760, 0.05), 70);
+    // スマホ: レベルが上がるほど、着信が頻繁に・広く・濃く画面を覆う
+    if (def.levels?.callEvery && state.screen === 'play' && body.state === 'flying') {
+      if (state.call) {
+        state.call.life -= dt;
+        if (state.call.life <= 0) state.call = null;
+      } else {
+        state.nextCallAt -= dt;
+        if (state.nextCallAt <= 0) {
+          const level = levelOf(body.kicks);
+          state.call = {
+            caller: def.callers[Math.floor(Math.random() * def.callers.length)],
+            life: 1.6,
+            cover: levelValue(def, 'callCover', level),
+            opacity: levelValue(def, 'callOpacity', level),
+          };
+          state.nextCallAt = levelValue(def, 'callEvery', level);
+          ringtone();
+        }
       }
     }
+    if (state.screen !== 'play') state.call = null;
   }
 
   for (const p of state.particles) {
@@ -321,10 +360,11 @@ function update(dt) {
   state.popups = state.popups.filter((p) => p.life > 0);
   for (const f of state.feet) f.life -= dt;
   state.feet = state.feet.filter((f) => f.life > 0);
-  if (state.notice) {
-    state.notice.life -= dt;
-    if (state.notice.life <= 0) state.notice = null;
+  for (const seed of state.seeds) {
+    seed.life -= dt;
+    if (seed.life < 0.8) seed.y += 70 * dt; // 最後は垂れて落ちる
   }
+  state.seeds = state.seeds.filter((seed) => seed.life > 0);
   state.shake = Math.max(0, state.shake - dt);
 }
 
@@ -396,24 +436,12 @@ function drawObject() {
   ctx.translate(body.x, body.y + (1 - squash) * body.r);
   ctx.rotate(body.angle);
   ctx.scale(1 / squash, squash);
-  if (def.emoji) {
-    ctx.font = `${body.r * 2.1}px ${EMOJI_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#000'; // 絵文字も fillStyle の透明度の影響を受けるので不透明にしておく
-    ctx.fillText(def.emoji, 0, body.r * 0.08);
-  } else {
-    // 豆腐（絵文字がないので描く）
-    const s = body.r * 1.6;
-    ctx.fillStyle = '#fffdf5';
-    ctx.strokeStyle = '#e9e3cf';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(-s / 2, -s / 2, s, s, body.r * 0.18);
-    ctx.fill();
-    ctx.stroke();
-  }
-  if (body.cracks && def.id !== 'tofu') drawCracks(body, body.cracks, def.id === 'phone' ? 'rgba(255,255,255,0.9)' : 'rgba(80,50,20,0.8)');
+  ctx.font = `${body.r * 2.1}px ${EMOJI_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000'; // 絵文字も fillStyle の透明度の影響を受けるので不透明にしておく
+  ctx.fillText(def.emoji, 0, body.r * 0.08);
+  if (body.cracks) drawCracks(body, body.cracks, def.id === 'phone' ? 'rgba(255,255,255,0.9)' : 'rgba(80,50,20,0.8)');
   ctx.restore();
 
   // 画面より上に飛んだときの目印
@@ -452,9 +480,9 @@ function drawEffects() {
   ctx.textAlign = 'center';
   for (const p of state.popups) {
     ctx.globalAlpha = Math.min(1, p.life * 2);
-    ctx.font = `16px ${PIXEL_FONT}`;
+    ctx.font = `${p.size}px ${PIXEL_FONT}`;
     ctx.fillStyle = '#000';
-    ctx.fillText(p.text, p.x + 2, p.y + 2);
+    ctx.fillText(p.text, p.x + p.size / 8, p.y + p.size / 8);
     ctx.fillStyle = p.color;
     ctx.fillText(p.text, p.x, p.y);
   }
@@ -486,10 +514,12 @@ function drawHud() {
   pixelText(String(body.kicks).padStart(3, '0'), WORLD.width / 2, 120, `64px ${PIXEL_FONT}`, '#fcfcfc');
   ctx.textAlign = 'left';
   pixelText(`STAGE ${OBJECTS.indexOf(def) + 1}`, 16, 36, `16px ${PIXEL_FONT}`, '#fcd800');
+  pixelText(`Lv${levelOf(body.kicks)}`, 16, 64, `16px ${PIXEL_FONT}`, '#fcfcfc');
   ctx.textAlign = 'right';
   pixelText(`HI ${String(state.best[def.id] ?? 0).padStart(3, '0')}`, WORLD.width - 64, 36, `16px ${PIXEL_FONT}`, '#fcfcfc');
   ctx.textAlign = 'center';
   pixelText(def.name, WORLD.width / 2, 164, `24px ${DOT_FONT}`, '#fcfcfc');
+  drawWind();
 
   if (body.state === 'ready') {
     const y = Math.min(WORLD.ground - 120, body.y + body.r + 24);
@@ -502,17 +532,58 @@ function drawHud() {
     ctx.fillText('はしを けると はんたいへ とぶ', WORLD.width / 2, y + 72);
   }
 
-  if (state.notice) {
-    const y = 48 + Math.min(1, (1.8 - state.notice.life) * 6) * 8;
-    retroWindow(20, y, WORLD.width - 40, 72);
-    ctx.textAlign = 'left';
-    ctx.font = `12px ${PIXEL_FONT}`;
-    ctx.fillStyle = '#e40058';
-    ctx.fillText('NEW MESSAGE', 36, y + 30);
-    ctx.font = `20px ${DOT_FONT}`;
-    ctx.fillStyle = '#fcfcfc';
-    ctx.fillText(state.notice.text, 36, y + 56);
+}
+
+// ボールの風向きと強さ（矢印の数）
+function drawWind() {
+  const { def, body } = state;
+  const force = windForce(body, def);
+  if (!def.levels?.wind || body.state === 'ready') return;
+  const strength = Math.min(4, Math.round(Math.abs(force) / 120));
+  const arrows = strength ? (force > 0 ? '>'.repeat(strength) : '<'.repeat(strength)) : '-';
+  ctx.textAlign = 'center';
+  pixelText(`WIND ${arrows}`, WORLD.width / 2, 200, `16px ${PIXEL_FONT}`, strength >= 3 ? '#e40058' : '#fcfcfc');
+}
+
+function drawSeeds() {
+  for (const seed of state.seeds) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, seed.life / 0.3);
+    ctx.translate(seed.x, seed.y);
+    ctx.rotate(seed.angle);
+    ctx.fillStyle = '#181010';
+    ctx.fillRect(-8, -12, 16, 24);
+    ctx.fillRect(-4, -16, 8, 32);
+    ctx.fillStyle = '#7c7c7c';
+    ctx.fillRect(-4, -8, 4, 6);
+    ctx.restore();
   }
+}
+
+// スマホの着信画面。cover の割合だけ上から画面を覆う
+function drawCall() {
+  const call = state.call;
+  if (!call) return;
+  const h = WORLD.height * call.cover;
+  ctx.fillStyle = `rgba(0,0,0,${call.opacity})`;
+  ctx.fillRect(0, 0, WORLD.width, h);
+  const y = Math.max(16, h / 2 - 70);
+  retroWindow(36, y, WORLD.width - 72, 140);
+  ctx.textAlign = 'center';
+  ctx.font = `12px ${PIXEL_FONT}`;
+  ctx.fillStyle = Math.floor(call.life * 6) % 2 ? '#fcd800' : '#fcfcfc';
+  ctx.fillText('INCOMING CALL', WORLD.width / 2, y + 34);
+  ctx.font = `28px ${DOT_FONT}`;
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillText(call.caller, WORLD.width / 2, y + 74);
+  ctx.fillStyle = '#00a800';
+  ctx.fillRect(64, y + 92, 120, 32);
+  ctx.fillStyle = '#e40058';
+  ctx.fillRect(WORLD.width - 184, y + 92, 120, 32);
+  ctx.font = `18px ${DOT_FONT}`;
+  ctx.fillStyle = '#fcfcfc';
+  ctx.fillText('おうとう', 124, y + 115);
+  ctx.fillText('きょひ', WORLD.width - 124, y + 115);
 }
 
 function render() {
@@ -524,7 +595,9 @@ function render() {
   if (state.body && state.screen !== 'title') {
     drawObject();
     drawEffects();
+    drawSeeds();
     if (state.screen === 'play' || state.screen === 'over') drawHud();
+    drawCall();
   }
   // 小さく描いた画面を、ぼかさずに拡大する
   screen.setTransform(1, 0, 0, 1, 0, 0);
