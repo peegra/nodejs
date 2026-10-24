@@ -20,6 +20,7 @@ export function createBody(def, { x = WORLD.width / 2, y = WORLD.ground - 260 } 
     r0: def.radius,
     cracks: 0,
     kicks: 0,
+    walls: 0, // 壁に当たった回数
     cooldown: 0,
     time: 0,
     state: 'ready', // ready（最初のタップ待ち）| flying | grounded | broken
@@ -52,9 +53,11 @@ export function step(body, def, dt, { windNoise = defaultWind } = {}) {
   if (body.x - body.r < 0) {
     body.x = body.r;
     body.vx = Math.abs(body.vx) * WALL_BOUNCE;
+    body.walls += 1;
   } else if (body.x + body.r > WORLD.width) {
     body.x = WORLD.width - body.r;
     body.vx = -Math.abs(body.vx) * WALL_BOUNCE;
+    body.walls += 1;
   }
 
   if (body.y + body.r >= WORLD.ground) {
@@ -105,9 +108,9 @@ export function tryKick(body, def, tapX, tapY) {
   return result;
 }
 
-// 結果画面に出す「おまけの数字」（米粒の残りなど）
-export function remainingPct(body) {
-  return Math.round((body.r / body.r0) * 100);
+// おにぎりに残っている米粒の数（大きさ＝面積に比例させる）
+export function riceGrains(body, def) {
+  return Math.round(def.grains * (body.r / body.r0) ** 2);
 }
 
 // 1つの向きに7秒ほど吹き続け、その中で強弱（突風）が付く

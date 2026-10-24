@@ -5,9 +5,11 @@
 //   radius         当たり判定の半径
 //   shrinkPerKick  蹴るたびに小さくなる割合（おにぎり）
 //   minRadius      これより小さくならない
+//   grains         最初の米粒の数（おにぎり）。小さくなると面積に比例して減る
 //   fragile        中心から外れた蹴り（|ずれ| > threshold）を maxCracks 回まで耐える
 //   levels         レベル（10回ごとに上がる、Lv1〜Lv6）ごとの値。配列の i 番目が Lv(i+1)
 //     wind           横風の強さ（ボール）
+//     windName       画面に出す風の強さの呼び名（ボール）
 //     crackThreshold ヒビが入らない「真ん中」の幅（生卵）
 //     seedsPerKick   蹴るたびに飛んでくる種の数（すいか）
 //     seedSlide      張り付いた種が垂れる速さ px/秒。設定しなければ垂れずに張り付いたまま（すいか）
@@ -26,7 +28,10 @@ export const OBJECTS = [
     kickSpeed: 980,
     drag: 0.05,
     radius: 42,
-    levels: { wind: [0, 140, 240, 340, 440, 540] },
+    levels: {
+      wind: [0, 140, 240, 340, 440, 540],
+      windName: ['むふう', 'そよかぜ', 'かぜ', 'つよいかぜ', 'きょうふう', 'ぼうふう'],
+    },
     intro: '10回ごとに 横風が強くなる。',
     groundLine: 'ポトッ。風のせいにしよう。',
   },
@@ -40,6 +45,7 @@ export const OBJECTS = [
     radius: 46,
     shrinkPerKick: 0.035,
     minRadius: 16,
+    grains: 2000,
     intro: '蹴るたびに米粒が飛んで、小さくなる。',
     groundLine: '砂まみれ。もう食べられません。',
   },

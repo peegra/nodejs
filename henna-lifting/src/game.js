@@ -1,5 +1,6 @@
 import { OBJECTS, getObject, levelOf, levelValue } from './objects.js';
-import { WORLD, createBody, remainingPct, step, tryKick, windForce } from './physics.js';
+import { WORLD, createBody, riceGrains, step, tryKick, windForce } from './physics.js';
+import { TITLES, addRun, newTitles, rankTitle } from './titles.js';
 import { createMusic, tempoScale } from './music.js';
 
 const canvas = document.getElementById('stage');
@@ -53,6 +54,9 @@ const state = {
   overTimer: 0,
   shake: 0,
   best: store.get('best', {}),
+  titles: store.get('titles', []), // 取ったしょうごうの id
+  totals: store.get('totals', null), // これまでの合計（しょうごうの判定に使う）
+  run: null, // 今のプレイの記録
   muted: store.get('muted', false),
   view: { scale: 1, ox: 0, oy: 0 },
 };
@@ -256,6 +260,7 @@ function startGame(id) {
   state.nextCallAt = levelValue(state.def, 'callEvery', 1);
   state.overTimer = 0;
   state.shake = 0;
+  state.run = { perfects: 0, streak: 0, bestStreak: 0, calls: 0, callers: [] };
   state.screen = 'play';
   music.setRate(tempoScale(1));
   music.play('play');
@@ -273,15 +278,18 @@ function endGame() {
   [523, 440, 349, 262].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.2), 150 + i * 160));
   const { def, body } = state;
   const score = body.kicks;
-  const isRecord = score > (state.best[def.id] ?? 0);
+  const prevBest = state.best[def.id] ?? 0;
+  const isRecord = score > prevBest;
   if (isRecord) {
     state.best[def.id] = score;
     store.set('best', state.best);
   }
+  const got = earnTitles({ isRecord, prevBest });
   $('result-head').textContent = body.state === 'broken' ? 'BROKEN!' : 'GAME OVER';
   $('result-title').textContent = `STAGE ${OBJECTS.indexOf(def) + 1}　${def.name}`;
   $('result-score').textContent = String(score).padStart(3, '0');
-  $('result-rank').textContent = rankTitle(def, score);
+  $('result-rank').textContent = rankTitle(def.id, score);
+  showNewTitles(got);
   $('result-extra').textContent = extraLine(def, body);
   $('result-line').textContent = body.state === 'broken' ? def.breakLine : def.groundLine;
   $('result-record').hidden = !isRecord || score === 0;
@@ -289,17 +297,89 @@ function endGame() {
   $('result').hidden = false;
 }
 
-// スコアに応じた称号
-export function rankTitle(def, score) {
-  if (score >= 50) return `でんせつの ${def.name}しょくにん`;
-  if (score >= 30) return `${def.name}の エース`;
-  if (score >= 15) return 'レギュラー';
-  if (score >= 5) return 'サッカーぶいん';
-  return 'みならい';
+// 今回のプレイを記録に足して、新しく取れたしょうごうを保存する
+function earnTitles({ isRecord, prevBest }) {
+  const { def, body } = state;
+  const run = {
+    ...state.run,
+    stage: def.id,
+    kicks: body.kicks,
+    broken: body.state === 'broken',
+    cracks: body.cracks,
+    walls: body.walls,
+    grains: def.grains ? riceGrains(body, def) : 0,
+    grainsLost: def.grains ? def.grains - riceGrains(body, def) : 0,
+    smallest: def.minRadius ? body.r <= def.minRadius : false,
+    seeds: def.id === 'watermelon' ? state.seeds.length : 0,
+    muted: state.muted,
+    hour: new Date().getHours(),
+    isRecord,
+    prevBest,
+  };
+  state.totals = addRun(state.totals, run);
+  const got = newTitles(run, state.totals, state.titles);
+  state.titles = [...state.titles, ...got];
+  store.set('totals', state.totals);
+  store.set('titles', state.titles);
+  return got;
 }
 
+function showNewTitles(ids) {
+  const box = $('result-new');
+  box.hidden = ids.length === 0;
+  box.innerHTML = '';
+  if (!ids.length) return;
+  const head = document.createElement('span');
+  head.className = 'new-head';
+  head.textContent = 'NEW しょうごう GET!';
+  box.appendChild(head);
+  // 一度にたくさん取れたときは、結果画面が長くなりすぎないよう3つまで見せる
+  const lines = ids.slice(0, 3).map((id) => `★ ${TITLES.find((t) => t.id === id).name}`);
+  if (ids.length > 3) lines.push(`ほか ${ids.length - 3}こ（ずかんで みてね）`);
+  for (const line of lines) {
+    const item = document.createElement('span');
+    item.className = 'new-item';
+    item.textContent = line;
+    box.appendChild(item);
+  }
+}
+
+// しょうごう ずかん（取ったものは名前、まだのものは ？？？ とヒント）
+function showTitles() {
+  ensureAudio();
+  tone(880, 0.06);
+  music.play('title');
+  state.screen = 'titles';
+  $('title').hidden = true;
+  $('titles').hidden = false;
+  const owned = new Set(state.titles);
+  $('titles-count').textContent = `${String(owned.size).padStart(3, '0')} / ${TITLES.length}`;
+  const list = $('titles-list');
+  list.innerHTML = '';
+  TITLES.forEach((t, i) => {
+    const li = document.createElement('li');
+    const has = owned.has(t.id);
+    li.className = has ? 'got' : 'locked';
+    li.innerHTML = `<span class="t-no">${String(i + 1).padStart(3, '0')}</span><span class="t-name"></span><span class="t-hint"></span>`;
+    li.querySelector('.t-name').textContent = has ? t.name : '？？？';
+    li.querySelector('.t-hint').textContent = t.hint;
+    list.appendChild(li);
+  });
+  list.scrollTop = 0;
+}
+
+$('open-titles').addEventListener('click', (e) => {
+  e.stopPropagation(); // タイトル画面のタップ（ステージ選択へ）にしない
+  showTitles();
+});
+$('close-titles').addEventListener('click', () => {
+  tone(660, 0.06);
+  $('titles').hidden = true;
+  showTitle();
+});
+
 function extraLine(def, body) {
-  if (def.id === 'onigiri') return `米粒の残り ${remainingPct(body)}%`;
+  if (def.id === 'onigiri') return `米粒の残り ${riceGrains(body, def)}粒`;
   if (def.id === 'egg') return `ヒビ ${body.cracks}本`;
   if (def.id === 'phone') return `画面のヒビ ${body.cracks}本`;
   return state.best[def.id] ? `自己ベスト ${state.best[def.id]}回` : '';
@@ -308,7 +388,7 @@ function extraLine(def, body) {
 function shareText() {
   const { def, body } = state;
   const extra = extraLine(def, body);
-  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def, body.kicks)}」${extra ? `（${extra}）` : ''} #変なものリフティング`;
+  return `変なものリフティングで「${def.name}」を${body.kicks}回蹴り上げた！称号は「${rankTitle(def.id, body.kicks)}」${extra ? `（${extra}）` : ''} #変なものリフティング`;
 }
 
 // X の投稿画面と LINE の送信画面へのリンク（スマホの共有メニューが使えない環境でも動くように、普通のリンクにしている）
@@ -345,7 +425,13 @@ canvas.addEventListener('pointerdown', (e) => {
   state.feet.push({ x: p.x, y: p.y + body.r * 0.6, life: 0.18, flip: result.offset > 0 });
   KICK_SFX[def.id]?.();
 
-  if (result.perfect) addPopup('PERFECT!', body.x, body.y - body.r - 10, '#fcd800');
+  const run = state.run;
+  run.streak = result.perfect ? run.streak + 1 : 0;
+  run.bestStreak = Math.max(run.bestStreak, run.streak);
+  if (result.perfect) {
+    run.perfects += 1;
+    addPopup('PERFECT!', body.x, body.y - body.r - 10, '#fcd800');
+  }
   if (result.shrank) burst(body.x, body.y, def.id === 'onigiri' ? '#ffffff' : '#f8f4e3', 7, 2.5);
   if (result.cracked && def.fragile) {
     hiss(0.04, 0.35, 'highpass', 2800);
@@ -550,6 +636,8 @@ function update(dt) {
             opacity: levelValue(def, 'callOpacity', level),
           };
           state.nextCallAt = levelValue(def, 'callEvery', level);
+          state.run.calls += 1;
+          if (!state.run.callers.includes(state.call.caller)) state.run.callers.push(state.call.caller);
           ringtone();
         }
       }
@@ -737,7 +825,7 @@ function drawHud() {
   pixelText(`HI ${String(state.best[def.id] ?? 0).padStart(3, '0')}`, WORLD.width - 64, 36, `16px ${PIXEL_FONT}`, '#fcfcfc');
   ctx.textAlign = 'center';
   pixelText(def.name, WORLD.width / 2, 164, `24px ${DOT_FONT}`, '#fcfcfc');
-  drawWind();
+  drawGauge();
 
   if (body.state === 'ready') {
     const y = Math.min(WORLD.ground - 120, body.y + body.r + 24);
@@ -750,15 +838,20 @@ function drawHud() {
 
 }
 
-// ボールの風向きと強さ（矢印の数）
-function drawWind() {
+// 名前の下に出す、そのモノのクセの今の状態（ボールは風の強さ、おにぎりは米粒の数）
+function drawGauge() {
   const { def, body } = state;
-  const force = windForce(body, def);
-  if (!def.levels?.wind || body.state === 'ready') return;
-  const strength = Math.min(4, Math.round(Math.abs(force) / 120));
-  const arrows = strength ? (force > 0 ? '>'.repeat(strength) : '<'.repeat(strength)) : '-';
   ctx.textAlign = 'center';
-  pixelText(`WIND ${arrows}`, WORLD.width / 2, 200, `16px ${PIXEL_FONT}`, strength >= 3 ? '#e40058' : '#fcfcfc');
+  if (def.levels?.windName) {
+    const level = levelOf(body.kicks);
+    const force = body.state === 'ready' ? 0 : windForce(body, def);
+    const strength = Math.min(4, Math.round(Math.abs(force) / 120));
+    const arrows = strength ? (force > 0 ? '→'.repeat(strength) : '←'.repeat(strength)) : '';
+    const text = `かぜ：${levelValue(def, 'windName', level)}${arrows ? ` ${arrows}` : ''}`;
+    pixelText(text, WORLD.width / 2, 202, `20px ${DOT_FONT}`, level >= 5 ? '#e40058' : '#fcfcfc');
+  } else if (def.grains) {
+    pixelText(`こめつぶ：${riceGrains(body, def)}つぶ`, WORLD.width / 2, 202, `20px ${DOT_FONT}`, '#fcfcfc');
+  }
 }
 
 function drawSeed(x, y, scale, angle, squash) {
@@ -860,8 +953,9 @@ function render() {
   ctx.setTransform(PIX, 0, 0, PIX, shake * PIX, 0);
   ctx.imageSmoothingEnabled = false;
   drawBackground();
-  if (state.screen === 'title') drawFlyers();
-  if (state.body && state.screen !== 'title') {
+  const titleLike = state.screen === 'title' || state.screen === 'titles';
+  if (titleLike) drawFlyers();
+  if (state.body && !titleLike) {
     drawStreaks();
     drawObject();
     drawEffects();

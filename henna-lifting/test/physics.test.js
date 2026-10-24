@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_LEVEL, OBJECTS, getObject, levelOf, levelValue } from '../src/objects.js';
-import { WORLD, createBody, remainingPct, step, tryKick, windForce } from '../src/physics.js';
+import { WORLD, createBody, riceGrains, step, tryKick, windForce } from '../src/physics.js';
 
 const ball = getObject('ball');
 
@@ -101,6 +101,18 @@ test('ボール: Lv1は無風、レベルが上がるほど横風が強くなる
   assert.ok(b.vx > 0, '右向きの風で右に流される');
 });
 
+test('ボール: 風の強さの呼び名は「むふう」から始まる', () => {
+  assert.equal(levelValue(ball, 'windName', 1), 'むふう');
+  assert.equal(ball.levels.windName.length, MAX_LEVEL);
+});
+
+test('壁に当たった回数を数える', () => {
+  const b = createBody(ball, { x: 60 });
+  tryKick(b, ball, b.x + b.r, b.y);
+  for (let i = 0; i < 60; i++) step(b, ball, 1 / 120, { windNoise: () => 0.5 });
+  assert.equal(b.walls, 1);
+});
+
 test('風の設定がないモノは風を受けない', () => {
   const onigiri = getObject('onigiri');
   assert.equal(windForce(kicked(onigiri, 50), onigiri, () => 1), 0);
@@ -132,6 +144,14 @@ test('生卵: ヒビ3本までは耐え、4本目で割れる', () => {
   assert.equal(tryKick(b, egg, b.x, b.y), null);
 });
 
+test('おにぎり: 米粒は2000つぶから始まり、蹴るたびに減る', () => {
+  const onigiri = getObject('onigiri');
+  const b = createBody(onigiri);
+  assert.equal(riceGrains(b, onigiri), 2000);
+  tryKick(b, onigiri, b.x, b.y);
+  assert.ok(riceGrains(b, onigiri) < 2000);
+});
+
 test('おにぎり: 蹴るたびに同じ割合で小さくなり、最小サイズで止まる', () => {
   const onigiri = getObject('onigiri');
   const b = createBody(onigiri);
@@ -142,7 +162,7 @@ test('おにぎり: 蹴るたびに同じ割合で小さくなり、最小サイ
     tryKick(b, onigiri, b.x, b.y);
   }
   assert.equal(b.r, onigiri.minRadius);
-  assert.equal(remainingPct(b), Math.round((onigiri.minRadius / onigiri.radius) * 100));
+  assert.equal(riceGrains(b, onigiri), Math.round(onigiri.grains * (onigiri.minRadius / onigiri.radius) ** 2));
 });
 
 test('すいか: レベルが上がると飛んでくる種が増え、種は垂れずに張り付いたまま、大きさは3種類', () => {
