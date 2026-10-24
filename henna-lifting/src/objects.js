@@ -9,7 +9,7 @@
 //   levels         レベル（10回ごとに上がる、Lv1〜Lv6）ごとの値。配列の i 番目が Lv(i+1)
 //     wind           横風の強さ（ボール）
 //     crackThreshold ヒビが入らない「真ん中」の幅（生卵）
-//     seedsPerKick / seedSeconds  蹴るたびに画面に張り付く種の数と、張り付いている秒数（すいか）
+//     seedsPerKick / seedSlide    蹴るたびに飛んでくる種の数と、張り付いた種が垂れる速さ px/秒（すいか）
 //     callEvery / callCover / callOpacity  着信が来る間隔（秒）、画面を覆う割合、濃さ（スマホ）
 
 export const MAX_LEVEL = 6;
@@ -63,8 +63,8 @@ export const OBJECTS = [
     kickSpeed: 1150,
     drag: 0.02,
     radius: 58,
-    levels: { seedsPerKick: [1, 2, 2, 3, 4, 4], seedSeconds: [2.5, 3, 3.5, 4, 4.5, 5] },
-    intro: '蹴るたびに種が飛んで、画面に張り付く。',
+    levels: { seedsPerKick: [1, 2, 2, 3, 4, 4], seedSlide: [42, 36, 30, 24, 19, 15] },
+    intro: '蹴るたびに種が飛んできて、画面に張り付く。',
     groundLine: 'ボコッ。スイカ割り大会になりました。',
   },
   {

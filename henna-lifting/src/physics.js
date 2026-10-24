@@ -110,8 +110,9 @@ export function remainingPct(body) {
   return Math.round((body.r / body.r0) * 100);
 }
 
+// 1つの向きに7秒ほど吹き続け、その中で強弱（突風）が付く
 function defaultWind(t) {
-  return 0.5 + 0.35 * Math.sin(t * 1.3) + 0.15 * Math.sin(t * 3.7 + 1);
+  return 0.5 + 0.4 * Math.sin(t * 0.45) + 0.1 * Math.sin(t * 2.3 + 1);
 }
 
 function clamp(v, lo, hi) {

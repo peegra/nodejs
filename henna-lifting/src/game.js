@@ -40,7 +40,11 @@ const state = {
   particles: [],
   popups: [],
   feet: [],
-  seeds: [], // すいかの種（画面に張り付く）
+  seeds: [], // すいかの種（飛んできて画面に張り付き、垂れて下に溜まる）
+  pile: [], // 画面の下に溜まった種の高さ（横 20px ごと）
+  streaks: [], // 風の筋と葉っぱ
+  streakAcc: 0,
+  cloudShift: 0,
   call: null, // スマホの着信画面
   nextCallAt: 0,
   overTimer: 0,
@@ -76,19 +80,100 @@ function tone(freq, dur = 0.08, type = 'square', gain = 0.1, slideTo) {
   osc.start(t);
   osc.stop(t + dur);
 }
-function noise(dur = 0.2, gain = 0.3) {
+// リアル寄りの効果音: 低い「ドン」（音程が下がるサイン波）と、こすれ・弾ける音（フィルターをかけたノイズ）の組み合わせ
+function thump(f0, f1, dur, gain, delay = 0) {
   if (state.muted || !audio) return;
-  const buf = audio.createBuffer(1, Math.floor(audio.sampleRate * dur), audio.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-  const src = audio.createBufferSource();
+  const t = audio.currentTime + delay;
+  const osc = audio.createOscillator();
   const g = audio.createGain();
-  g.gain.value = gain;
-  src.buffer = buf;
-  src.connect(g).connect(audio.destination);
-  src.start();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(audio.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
 }
-const KICK_PITCH = { ball: 520, onigiri: 440, egg: 760, watermelon: 170, phone: 620 };
+
+let noiseBuf = null;
+function hiss(dur, gain, type, freq, { q = 1, sweepTo, delay = 0 } = {}) {
+  if (state.muted || !audio) return;
+  noiseBuf ??= makeNoise(1);
+  const t = audio.currentTime + delay;
+  const src = audio.createBufferSource();
+  const filter = audio.createBiquadFilter();
+  const g = audio.createGain();
+  src.buffer = noiseBuf;
+  filter.type = type;
+  filter.frequency.setValueAtTime(freq, t);
+  if (sweepTo) filter.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+  filter.Q.value = q;
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(filter).connect(g).connect(audio.destination);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + dur + 0.02);
+}
+
+function makeNoise(seconds) {
+  const buf = audio.createBuffer(1, Math.floor(audio.sampleRate * seconds), audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+const KICK_SFX = {
+  ball: () => { thump(170, 55, 0.13, 0.7); hiss(0.05, 0.35, 'bandpass', 1700, { q: 1.2 }); },
+  onigiri: () => { thump(130, 70, 0.08, 0.35); hiss(0.08, 0.3, 'lowpass', 900, { q: 0.7 }); },
+  egg: () => { thump(950, 520, 0.035, 0.22); hiss(0.025, 0.25, 'highpass', 3200, { q: 0.8 }); },
+  watermelon: () => { thump(105, 42, 0.24, 0.9); hiss(0.12, 0.35, 'lowpass', 650, { q: 0.8 }); },
+  phone: () => { hiss(0.03, 0.4, 'highpass', 2600, { q: 1 }); thump(620, 300, 0.05, 0.2); },
+};
+
+const LAND_SFX = {
+  ball: () => { thump(120, 40, 0.2, 0.6); hiss(0.1, 0.25, 'lowpass', 450); thump(110, 45, 0.12, 0.25, 0.18); },
+  onigiri: () => { hiss(0.22, 0.4, 'lowpass', 520, { sweepTo: 200 }); thump(90, 50, 0.12, 0.3); },
+  egg: () => { hiss(0.05, 0.4, 'highpass', 2200); hiss(0.4, 0.55, 'bandpass', 900, { q: 0.9, sweepTo: 250, delay: 0.03 }); },
+  watermelon: () => {
+    thump(85, 30, 0.45, 1);
+    hiss(0.35, 0.6, 'lowpass', 900, { sweepTo: 300 });
+    hiss(0.25, 0.3, 'bandpass', 1500, { q: 1.5, delay: 0.06 });
+  },
+  phone: () => {
+    thump(160, 70, 0.08, 0.4);
+    hiss(0.3, 0.4, 'highpass', 4200);
+    [3100, 4300, 3700, 5200].forEach((f, i) => setTimeout(() => tone(f, 0.05, 'sine', 0.05), 30 + i * 45));
+  },
+};
+
+// 風の音（ノイズを流し続け、風の強さに合わせて音量と高さを変える）
+let windNode = null;
+function startWindSound() {
+  if (!audio || windNode) return;
+  const src = audio.createBufferSource();
+  const filter = audio.createBiquadFilter();
+  const g = audio.createGain();
+  src.buffer = makeNoise(2);
+  src.loop = true;
+  filter.type = 'lowpass';
+  filter.frequency.value = 300;
+  g.gain.value = 0;
+  src.connect(filter).connect(g).connect(audio.destination);
+  src.start();
+  windNode = { src, filter, g };
+}
+function setWindSound(k) {
+  if (!windNode) return;
+  const t = audio.currentTime;
+  windNode.g.gain.setTargetAtTime(state.muted ? 0 : k * 0.22, t, 0.25);
+  windNode.filter.frequency.setTargetAtTime(280 + k * 900, t, 0.25);
+}
+function stopWindSound() {
+  windNode?.src.stop();
+  windNode = null;
+}
 
 // ---------- 画面サイズ ----------
 function resize() {
@@ -153,11 +238,16 @@ function startGame(id) {
   state.popups = [];
   state.feet = [];
   state.seeds = [];
+  state.pile = new Array(Math.ceil(WORLD.width / 20)).fill(0);
+  state.streaks = [];
+  state.streakAcc = 0;
   state.call = null;
   state.nextCallAt = levelValue(state.def, 'callEvery', 1);
   state.overTimer = 0;
   state.shake = 0;
   state.screen = 'play';
+  stopWindSound();
+  if (state.def.levels?.wind) startWindSound();
   $('title').hidden = true;
   $('menu').hidden = true;
   $('result').hidden = true;
@@ -165,6 +255,7 @@ function startGame(id) {
 
 function endGame() {
   state.screen = 'over';
+  stopWindSound();
   const { def, body } = state;
   const score = body.kicks;
   const isRecord = score > (state.best[def.id] ?? 0);
@@ -243,19 +334,19 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!result) return;
   if (levelOf(body.kicks) > levelBefore) levelUp(levelOf(body.kicks));
   const seeds = levelValue(def, 'seedsPerKick', levelBefore);
-  if (seeds) spitSeeds(seeds, levelValue(def, 'seedSeconds', levelBefore));
+  if (seeds) spitSeeds(seeds, levelValue(def, 'seedSlide', levelBefore));
 
   state.feet.push({ x: p.x, y: p.y + body.r * 0.6, life: 0.18, flip: result.offset > 0 });
-  tone(KICK_PITCH[def.id] ?? 500, def.id === 'watermelon' ? 0.12 : 0.07);
+  KICK_SFX[def.id]?.();
 
   if (result.perfect) addPopup('PERFECT!', body.x, body.y - body.r - 10, '#fcd800');
   if (result.shrank) burst(body.x, body.y, def.id === 'onigiri' ? '#ffffff' : '#f8f4e3', 7, 2.5);
   if (result.cracked && def.fragile) {
-    noise(0.08, 0.2);
+    hiss(0.04, 0.35, 'highpass', 2800);
     addPopup('CRACK!', body.x + body.r, body.y - body.r, '#e40058');
   }
   if (result.broke) {
-    noise(0.3, 0.35);
+    LAND_SFX.egg();
     burst(body.x, body.y, def.id === 'egg' ? '#ffd43b' : '#f8f4e3', 24, 4);
     state.shake = 0.3;
   }
@@ -272,17 +363,24 @@ function levelUp(level) {
   [660, 880, 1320].forEach((f, i) => setTimeout(() => tone(f, 0.09), i * 90));
 }
 
-// すいかの種を画面のどこかに張り付ける
-function spitSeeds(count, seconds) {
+// すいかの種: すいかの位置からこちらに向かって飛んできて、画面に張り付く
+const SEED_FLY = 0.22; // 飛んでくるのにかかる秒数
+function spitSeeds(count, slide) {
+  const { body } = state;
   for (let i = 0; i < count; i++) {
     state.seeds.push({
+      sx: body.x + (Math.random() - 0.5) * body.r,
+      sy: body.y + (Math.random() - 0.5) * body.r,
       x: 40 + Math.random() * (WORLD.width - 80),
-      y: 190 + Math.random() * 380,
-      angle: (Math.random() - 0.5) * 1.2,
-      life: seconds,
+      y: 180 + Math.random() * 360,
+      angle: (Math.random() - 0.5) * 0.8,
+      t: 0,
+      stuck: false,
+      landed: false,
+      splat: 0,
+      slide: slide * (0.8 + Math.random() * 0.4),
     });
   }
-  noise(0.05, 0.12);
 }
 
 function ringtone() {
@@ -302,11 +400,66 @@ function landingEffect() {
   state.shake = def.id === 'watermelon' ? 0.35 : 0.15;
   const colors = { egg: '#ffd43b', watermelon: '#e03131', phone: '#adb5bd', onigiri: '#ffffff' };
   if (colors[def.id]) burst(body.x, WORLD.ground - 4, colors[def.id], def.id === 'watermelon' ? 30 : 16, 4);
-  if (def.id === 'egg' || def.id === 'watermelon') noise(0.35, 0.35);
-  else tone(330, 0.35, 'square', 0.1, 80);
+  LAND_SFX[def.id]?.();
 }
 
 // ---------- 更新 ----------
+const SEED_H = 44; // 張り付いた種の高さ（縦長）
+function updateSeeds(dt) {
+  const floor = WORLD.height - 6;
+  for (const seed of state.seeds) {
+    if (!seed.stuck) {
+      seed.t += dt;
+      if (seed.t >= SEED_FLY) {
+        seed.stuck = true;
+        seed.splat = 0.12;
+        hiss(0.05, 0.18, 'bandpass', 1100, { q: 1.4 });
+      }
+      continue;
+    }
+    seed.splat = Math.max(0, seed.splat - dt);
+    if (seed.landed) continue;
+    // 剥がれずにゆっくり垂れていき、画面の下（すでに溜まった種の上）で止まる
+    const bin = Math.min(state.pile.length - 1, Math.max(0, Math.floor(seed.x / 20)));
+    const stopAt = floor - state.pile[bin] - SEED_H / 2;
+    seed.y = Math.min(stopAt, seed.y + seed.slide * dt);
+    if (seed.y >= stopAt) {
+      seed.landed = true;
+      state.pile[bin] += SEED_H * 0.45;
+    }
+  }
+}
+
+// 画面全体を流れる風の筋と葉っぱ、雲の流れ
+function updateWind(dt) {
+  const { def, body } = state;
+  const force = def?.levels?.wind && state.screen === 'play' && body.state === 'flying' ? windForce(body, def) : 0;
+  const k = Math.min(1, Math.abs(force) / 540);
+  setWindSound(k);
+  state.cloudShift += force * dt * 0.12;
+  if (k > 0.05) {
+    state.streakAcc += dt * (8 + 70 * k);
+    while (state.streakAcc >= 1) {
+      state.streakAcc -= 1;
+      const dir = Math.sign(force);
+      const leaf = Math.random() < 0.06 + 0.12 * k;
+      state.streaks.push({
+        x: dir > 0 ? -80 : WORLD.width + 80,
+        y: Math.random() * (WORLD.ground - 20),
+        len: leaf ? 0 : 24 + 70 * k + Math.random() * 40,
+        v: dir * (260 + 700 * k) * (0.8 + Math.random() * 0.4),
+        leaf,
+        phase: Math.random() * 6,
+      });
+    }
+  }
+  for (const st of state.streaks) {
+    st.x += st.v * dt;
+    st.phase += dt * 8;
+    if (st.leaf) st.y += Math.sin(st.phase) * 40 * dt;
+  }
+  state.streaks = state.streaks.filter((st) => st.x > -200 && st.x < WORLD.width + 200);
+}
 function update(dt) {
   const { def, body } = state;
   if (state.screen === 'play' || state.screen === 'over') {
@@ -360,11 +513,8 @@ function update(dt) {
   state.popups = state.popups.filter((p) => p.life > 0);
   for (const f of state.feet) f.life -= dt;
   state.feet = state.feet.filter((f) => f.life > 0);
-  for (const seed of state.seeds) {
-    seed.life -= dt;
-    if (seed.life < 0.8) seed.y += 70 * dt; // 最後は垂れて落ちる
-  }
-  state.seeds = state.seeds.filter((seed) => seed.life > 0);
+  updateSeeds(dt);
+  updateWind(dt);
   state.shake = Math.max(0, state.shake - dt);
 }
 
@@ -379,9 +529,11 @@ function drawCloud(x, y) {
 function drawBackground() {
   ctx.fillStyle = '#5c94fc';
   ctx.fillRect(-200, -400, WORLD.width + 400, WORLD.ground + 400);
-  drawCloud(40, 230);
-  drawCloud(290, 320);
-  drawCloud(170, 430);
+  const span = WORLD.width + 160;
+  const wrap = (x) => ((((x + state.cloudShift) % span) + span) % span) - 80;
+  drawCloud(wrap(40), 230);
+  drawCloud(wrap(290), 320);
+  drawCloud(wrap(170), 430);
 
   // 遠くのゴール
   ctx.fillStyle = 'rgba(252,252,252,0.45)';
@@ -545,18 +697,56 @@ function drawWind() {
   pixelText(`WIND ${arrows}`, WORLD.width / 2, 200, `16px ${PIXEL_FONT}`, strength >= 3 ? '#e40058' : '#fcfcfc');
 }
 
+function drawSeed(x, y, scale, angle, squash) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale * (1 + squash), scale * (1 - squash));
+  // しずく形の黒い種（上がとがっている）
+  ctx.fillStyle = '#1a0e08';
+  ctx.beginPath();
+  ctx.moveTo(0, -22);
+  ctx.quadraticCurveTo(15, -6, 13, 8);
+  ctx.quadraticCurveTo(10, 22, 0, 22);
+  ctx.quadraticCurveTo(-10, 22, -13, 8);
+  ctx.quadraticCurveTo(-15, -6, 0, -22);
+  ctx.fill();
+  ctx.fillStyle = '#4a3020';
+  ctx.fillRect(-4, 10, 10, 6);
+  ctx.fillStyle = '#d8d0c0';
+  ctx.fillRect(-7, -6, 4, 8);
+  ctx.restore();
+}
+
 function drawSeeds() {
   for (const seed of state.seeds) {
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, seed.life / 0.3);
-    ctx.translate(seed.x, seed.y);
-    ctx.rotate(seed.angle);
-    ctx.fillStyle = '#181010';
-    ctx.fillRect(-8, -12, 16, 24);
-    ctx.fillRect(-4, -16, 8, 32);
-    ctx.fillStyle = '#7c7c7c';
-    ctx.fillRect(-4, -8, 4, 6);
-    ctx.restore();
+    if (!seed.stuck) {
+      // 小さい状態から大きくなりながら、こちらに飛んでくる
+      const p = 1 - (1 - seed.t / SEED_FLY) ** 2;
+      const x = seed.sx + (seed.x - seed.sx) * p;
+      const y = seed.sy + (seed.y - seed.sy) * p;
+      drawSeed(x, y, 0.2 + 0.8 * p, seed.angle + (1 - p) * 4, 0);
+    } else {
+      drawSeed(seed.x, seed.y, 1, seed.angle, seed.splat > 0 ? 0.25 : 0);
+    }
+  }
+}
+
+function drawStreaks() {
+  for (const st of state.streaks) {
+    if (st.leaf) {
+      ctx.save();
+      ctx.translate(st.x, st.y);
+      ctx.rotate(st.phase);
+      ctx.fillStyle = '#58d854';
+      ctx.fillRect(-6, -4, 12, 8);
+      ctx.fillStyle = '#00a800';
+      ctx.fillRect(-6, -1, 12, 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = 'rgba(252,252,252,0.8)';
+      ctx.fillRect(st.x, st.y, st.len, 4);
+    }
   }
 }
 
@@ -593,6 +783,7 @@ function render() {
   ctx.imageSmoothingEnabled = false;
   drawBackground();
   if (state.body && state.screen !== 'title') {
+    drawStreaks();
     drawObject();
     drawEffects();
     drawSeeds();

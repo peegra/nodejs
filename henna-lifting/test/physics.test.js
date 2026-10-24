@@ -145,11 +145,13 @@ test('おにぎり: 蹴るたびに同じ割合で小さくなり、最小サイ
   assert.equal(remainingPct(b), Math.round((onigiri.minRadius / onigiri.radius) * 100));
 });
 
-test('すいか: レベルが上がると、種の数と張り付く時間が増える', () => {
+test('すいか: レベルが上がると、飛んでくる種が増え、垂れるのが遅くなる（長く居座る）', () => {
   const wm = getObject('watermelon');
   assert.equal(levelValue(wm, 'seedsPerKick', 1), 1);
   assert.ok(levelValue(wm, 'seedsPerKick', 5) > levelValue(wm, 'seedsPerKick', 1));
-  assert.ok(levelValue(wm, 'seedSeconds', 6) > levelValue(wm, 'seedSeconds', 1));
+  for (let lv = 2; lv <= MAX_LEVEL; lv++) {
+    assert.ok(levelValue(wm, 'seedSlide', lv) < levelValue(wm, 'seedSlide', lv - 1));
+  }
 });
 
 test('スマホ: レベルが上がると、着信の間隔が短く、覆う範囲が広く濃くなる', () => {
